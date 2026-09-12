@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import uuid
 import logging
@@ -60,6 +61,7 @@ class Variant(BaseModel):
     label: str = ""
     selections: dict = {}
     price: int = 0
+    stock: int = -1  # -1 = tidak dilacak / unlimited
 
 
 class Book(BaseModel):
@@ -78,6 +80,7 @@ class Book(BaseModel):
     tiktok_url: str = ""
     variant_groups: List[VariantGroup] = []
     variants: List[Variant] = []
+    stock: int = -1  # -1 = unlimited (default untuk ebook)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -96,6 +99,7 @@ class BookInput(BaseModel):
     tiktok_url: str = ""
     variant_groups: List[VariantGroup] = []
     variants: List[Variant] = []
+    stock: int = -1
 
 
 class ShippingRegion(BaseModel):
@@ -286,7 +290,7 @@ async def seed_admin():
 
 SHOPEE = os.environ.get("SHOPEE_URL", "https://s.shopee.co.id/8AV4Tsb6bM")
 
-SAMPLE_BOOKS: list = []  # katalog asli diimport via import_catalog.py
+SAMPLE_BOOKS: list = []  # katalog asli diimport via import_catalog.py / seed_data.json
 
 SAMPLE_REGIONS = [
     ShippingRegion(name="Jawa", cost=12000, eta="1-3 hari"),
@@ -305,15 +309,28 @@ SAMPLE_PAYMENT_METHODS = [
     PaymentMethod(name="QRIS", account_name="Scan barcode QRIS", account_number=""),
 ]
 
+SEED_FILE = ROOT_DIR / "seed_data.json"
+
+
+async def seed_collection(name: str, fallback: list, file_data: dict):
+    if await db[name].count_documents({}) > 0:
+        return
+    data = file_data.get(name) or [x.model_dump() for x in fallback]
+    if data:
+        await db[name].insert_many(data)
+
 
 async def seed_data():
     await seed_admin()
-    if await db.shipping_regions.count_documents({}) == 0:
-        await db.shipping_regions.insert_many([r.model_dump() for r in SAMPLE_REGIONS])
-    if await db.books.count_documents({}) == 0:
-        await db.books.insert_many([b.model_dump() for b in SAMPLE_BOOKS])
-    if await db.payment_methods.count_documents({}) == 0:
-        await db.payment_methods.insert_many([m.model_dump() for m in SAMPLE_PAYMENT_METHODS])
+    file_data: dict = {}
+    if SEED_FILE.exists():
+        try:
+            file_data = json.loads(SEED_FILE.read_text())
+        except Exception as exc:
+            logger.error("seed_data.json unreadable: %s", exc)
+    await seed_collection("books", SAMPLE_BOOKS, file_data)
+    await seed_collection("shipping_regions", SAMPLE_REGIONS, file_data)
+    await seed_collection("payment_methods", SAMPLE_PAYMENT_METHODS, file_data)
 
 
 @asynccontextmanager
@@ -389,6 +406,17 @@ async def create_order(payload: OrderCreate):
                 raise HTTPException(status_code=400, detail="Variasi tidak ditemukan")
             price = variant["price"]
             vlabel = variant.get("label", "")
+            stock = variant.get("stock", -1)
+            if stock >= 0:
+                if stock <= 0:
+                    raise HTTPException(status_code=400, detail=f"Stok habis: {d['title']} ({vlabel})")
+                await db.books.update_one({"id": d["id"], "variants.id": w.variant_id}, {"$inc": {"variants.$.stock": -1}})
+        else:
+            stock = d.get("stock", -1)
+            if stock >= 0:
+                if stock <= 0:
+                    raise HTTPException(status_code=400, detail=f"Stok habis: {d['title']}")
+                await db.books.update_one({"id": d["id"]}, {"$inc": {"stock": -1}})
         items.append(OrderItem(book_id=d["id"], title=d["title"], price=price, variant_id=w.variant_id, variant_label=vlabel))
     subtotal = sum(i.price * i.qty for i in items)
     shipping = 0
@@ -509,9 +537,23 @@ async def admin_orders(type: Optional[str] = None, status: Optional[str] = None,
 async def admin_update_order(order_id: str, payload: StatusUpdate, user=Depends(get_admin)):
     if payload.status not in ORDER_STATUSES:
         raise HTTPException(status_code=400, detail="Status tidak valid")
-    result = await db.orders.update_one({"id": order_id}, {"$set": {"status": payload.status}})
-    if result.matched_count == 0:
+    doc_before = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not doc_before:
         raise HTTPException(status_code=404, detail="Pesanan tidak ditemukan")
+    await db.orders.update_one({"id": order_id}, {"$set": {"status": payload.status}})
+    # kembalikan stok jika pesanan dibatalkan
+    if payload.status == "dibatalkan" and doc_before.get("status") != "dibatalkan":
+        for item in doc_before.get("items", []):
+            if item.get("variant_id"):
+                await db.books.update_one(
+                    {"id": item["book_id"], "variants.id": item["variant_id"]},
+                    {"$inc": {"variants.$.stock": 1}},
+                )
+            else:
+                await db.books.update_one(
+                    {"id": item["book_id"], "stock": {"$gte": 0}},
+                    {"$inc": {"stock": 1}},
+                )
     doc = await db.orders.find_one({"id": order_id}, {"_id": 0})
     return Order(**doc)
 

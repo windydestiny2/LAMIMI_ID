@@ -32,11 +32,17 @@ export default function BookDetail() {
   const hasVariants = groups.length > 0;
   const allSelected = groups.every((g) => sel[g.name]);
   const activeVariant = book?.variants.find((v) => groups.every((g) => v.selections[g.name] === sel[g.name]));
+  const outOfStock = !!book && !isDigital && (hasVariants ? !!activeVariant && activeVariant.stock === 0 : book.stock === 0);
 
-  const buy = () => {
-    if (hasVariants && !allSelected) {
-      toast.error("Pilih variasi dulu ya.");
+  const buy = (e?: React.MouseEvent) => {
+    if (outOfStock) {
+      e?.preventDefault();
+      toast.error("Stok variasi ini sedang habis.");
       return;
+    }
+    if (hasVariants && !allSelected) {
+      e?.preventDefault();
+      toast.error("Pilih variasi dulu ya.");
     }
   };
 
@@ -115,25 +121,34 @@ export default function BookDetail() {
                 {hasVariants && allSelected && activeVariant && (
                   <p className="mt-1 text-xs text-[#635F59]" data-testid="detail-variant-label">Variasi: {activeVariant.label}</p>
                 )}
+                {!isDigital && (!hasVariants || (allSelected && activeVariant)) && (() => {
+                  const st = hasVariants && activeVariant ? activeVariant.stock : book.stock;
+                  return (
+                    <p className={`mt-2 text-sm font-semibold ${st === 0 ? "text-red-600" : "text-[#15803D]"}`} data-testid="stock-info">
+                      {st < 0 ? "Stok tersedia" : st > 0 ? `Stok tersedia: ${st}` : "Stok habis"}
+                    </p>
+                  );
+                })()}
 
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
                     to={hasVariants && !allSelected ? "#" : `/checkout/${book.id}${activeVariant ? `?v=${activeVariant.id}` : ""}`}
                     onClick={buy}
                     data-testid="detail-buy-button"
-                    className={`inline-flex items-center gap-2 rounded-full bg-[#DD6B20] px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#DD6B20]/25 transition-all hover:-translate-y-0.5 hover:bg-[#C05621] ${hasVariants && !allSelected ? "opacity-60" : ""}`}
+                    className={`inline-flex items-center gap-2 rounded-full bg-[#DD6B20] px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#DD6B20]/25 transition-all hover:-translate-y-0.5 hover:bg-[#C05621] ${(hasVariants && !allSelected) || outOfStock ? "opacity-60" : ""}`}
                   >
                     {isDigital ? <Zap className="size-4" /> : <Truck className="size-4" />}
-                    {isDigital ? "Beli Ebook Sekarang" : "Pesan via JNE"}
+                    {outOfStock ? "Stok Habis" : isDigital ? "Beli Ebook Sekarang" : "Pesan via JNE"}
                     <ArrowRight className="size-4" />
                   </Link>
                   <button
                     onClick={() => {
+                      if (outOfStock) return toast.error("Stok variasi ini sedang habis.");
                       if (hasVariants && (!allSelected || !activeVariant)) return toast.error("Pilih variasi dulu ya.");
                       handleAddToCart(book, activeVariant);
                     }}
                     data-testid="detail-add-cart-button"
-                    className="inline-flex items-center gap-2 rounded-full border border-[#1F1D1A]/15 bg-white px-6 py-3.5 text-sm font-semibold text-[#1F1D1A] transition-all hover:-translate-y-0.5 hover:border-[#DD6B20] hover:text-[#C05621]"
+                    className={`inline-flex items-center gap-2 rounded-full border border-[#1F1D1A]/15 bg-white px-6 py-3.5 text-sm font-semibold text-[#1F1D1A] transition-all hover:-translate-y-0.5 hover:border-[#DD6B20] hover:text-[#C05621] ${outOfStock ? "opacity-60" : ""}`}
                   >
                     <ShoppingCart className="size-4" /> Tambah ke Keranjang
                   </button>

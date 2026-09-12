@@ -42,3 +42,5 @@ Website toko live gratis bernama LAMIMI_ID: (1) toko ebook digital Mandarin/Kore
 - Katalog asli user diimport: 132 produk (63 Mandarin, 37 Korea, 14 Jepang, 10 Inggris, 8 fisik) via import_catalog.py; sampul generik per bahasa berlogo LAMIMI_ID.
 - Barcode QRIS asli dari string QRIS user → /qris-lamimi.png, tampil di checkout saat QRIS dipilih.
 - Variasi produk ala Shopee: variant_groups (nama bebas: Level/Ukuran/Jenis) + variants (kombinasi dengan harga masing-masing); editor di dialog buku admin ("Buat/Perbarui Kombinasi Harga"); detail page dengan pill selector; cart/checkout membawa variant_id; OrderItem menyimpan variant_label; contoh terpasang di "HSK 3.0 Mock Test" (Level 1-4 @ Rp30.000).
+- Stok per variasi & per buku fisik (stock: -1 = unlimited): tampil di detail page, stok berkurang saat order dibuat, order ditolak jika habis, stok kembali saat pesanan dibatalkan admin; input stok di editor variasi admin.
+- Export data live ke backend/seed_data.json (export_data.py) — startup auto-seed dari file ini jika koleksi kosong, sehingga project jalan lokal dengan data penuh. PANDUAN_LOKAL.md berisi langkah run di Mac (brew, mongodb-community, venv, yarn).

@@ -18,18 +18,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface BookForm {
   title: string; author: string; language: string; type: string; price: string;
   description: string; cover_url: string; badge: string; featured: boolean;
-  shopee_url: string; tokopedia_url: string; tiktok_url: string;
+  shopee_url: string; tokopedia_url: string; tiktok_url: string; stock: string;
 }
-const EMPTY_FORM: BookForm = { title: "", author: "", language: "mandarin", type: "digital", price: "", description: "", cover_url: "", badge: "", featured: false, shopee_url: "", tokopedia_url: "", tiktok_url: "" };
+const EMPTY_FORM: BookForm = { title: "", author: "", language: "mandarin", type: "digital", price: "", description: "", cover_url: "", badge: "", featured: false, shopee_url: "", tokopedia_url: "", tiktok_url: "", stock: "-1" };
 
 interface VGroup { name: string; options: string }
-interface VRow { id: string; label: string; selections: Record<string, string>; price: string }
+interface VRow { id: string; label: string; selections: Record<string, string>; price: string; stock: string }
 
 function parseGroups(groups: VGroup[]) {
   return groups
     .map((g) => ({ name: g.name.trim(), options: g.options.split(",").map((o) => o.trim()).filter(Boolean) }))
     .filter((g) => g.name && g.options.length > 0);
 }
+
+const parseStock = (s: string) => (s.trim() === "" ? -1 : parseInt(s));
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -85,8 +87,9 @@ export default function AdminDashboard() {
       const body = {
         ...form,
         price: parseInt(form.price) || 0,
+        stock: parseStock(form.stock),
         variant_groups: groups,
-        variants: vRows.map((r) => ({ id: r.id, label: r.label, selections: r.selections, price: parseInt(r.price) || 0 })),
+        variants: vRows.map((r) => ({ id: r.id, label: r.label, selections: r.selections, price: parseInt(r.price) || 0, stock: parseStock(r.stock) })),
       };
       return editing ? aPut(`/admin/books/${editing.id}`, body) : aPost("/admin/books", body);
     },
@@ -125,9 +128,9 @@ export default function AdminDashboard() {
 
   const openEdit = (b: Book) => {
     setEditing(b);
-    setForm({ title: b.title, author: b.author, language: b.language, type: b.type, price: String(b.price), description: b.description, cover_url: b.cover_url, badge: b.badge, featured: b.featured, shopee_url: b.shopee_url, tokopedia_url: b.tokopedia_url, tiktok_url: b.tiktok_url });
+    setForm({ title: b.title, author: b.author, language: b.language, type: b.type, price: String(b.price), description: b.description, cover_url: b.cover_url, badge: b.badge, featured: b.featured, shopee_url: b.shopee_url, tokopedia_url: b.tokopedia_url, tiktok_url: b.tiktok_url, stock: String(b.stock ?? -1) });
     setVGroups(b.variant_groups.map((g) => ({ name: g.name, options: g.options.join(", ") })));
-    setVRows(b.variants.map((v) => ({ id: v.id, label: v.label, selections: v.selections, price: String(v.price) })));
+    setVRows(b.variants.map((v) => ({ id: v.id, label: v.label, selections: v.selections, price: String(v.price), stock: String(v.stock ?? -1) })));
     setDialogOpen(true);
   };
 
@@ -154,7 +157,7 @@ export default function AdminDashboard() {
       combos.map((c) => {
         const label = groups.map((g) => c[g.name]).join(" / ");
         const existing = prev.find((r) => r.label === label);
-        return { id: existing?.id ?? crypto.randomUUID(), label, selections: c, price: existing?.price ?? form.price ?? "0" };
+        return { id: existing?.id ?? crypto.randomUUID(), label, selections: c, price: existing?.price ?? form.price ?? "0", stock: existing?.stock ?? "-1" };
       }),
     );
     toast.success(`${combos.length} kombinasi variasi dibuat`);
@@ -409,6 +412,12 @@ export default function AdminDashboard() {
                 <SelectContent><SelectItem value="digital">Ebook Digital</SelectItem><SelectItem value="fisik">Buku Fisik</SelectItem></SelectContent>
               </Select>
             </div>
+            {form.type === "fisik" && vRows.length === 0 && (
+              <div className="sm:col-span-2">
+                <Label>Stok buku fisik (kosongkan / -1 = tanpa batas)</Label>
+                <Input data-testid="admin-book-stock-input" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className="mt-1.5" />
+              </div>
+            )}
             <div className="sm:col-span-2"><Label>URL Sampul</Label><Input data-testid="admin-book-cover-input" value={form.cover_url} onChange={(e) => setForm({ ...form, cover_url: e.target.value })} placeholder="https://..." className="mt-1.5" /></div>
             <div><Label>Badge</Label><Input data-testid="admin-book-badge-input" value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} placeholder="Best Seller" className="mt-1.5" /></div>
             <div className="flex items-end gap-2 pb-1">
@@ -454,11 +463,14 @@ export default function AdminDashboard() {
               </div>
               {vGroups.length > 0 && (
                 <button type="button" onClick={generateCombos} data-testid="admin-generate-variants" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#1F1D1A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#3a352f]">
-                  <Layers className="size-3.5" /> Buat / Perbarui Kombinasi Harga
+                  <Layers className="size-3.5" /> Buat / Perbarui Kombinasi Harga & Stok
                 </button>
               )}
               {vRows.length > 0 && (
-                <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto rounded-xl border border-[#E8DFC8] bg-white p-3">
+                <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto rounded-xl border border-[#E8DFC8] bg-white p-3">
+                  <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-wide text-[#635F59]">
+                    <span className="flex-1">Kombinasi</span><span className="w-28">Harga (Rp)</span><span className="w-24">Stok (-1 = ∞)</span>
+                  </div>
                   {vRows.map((r, ri) => (
                     <div key={r.id} className="flex items-center gap-3">
                       <span className="flex-1 text-xs font-medium">{r.label}</span>
@@ -467,8 +479,16 @@ export default function AdminDashboard() {
                         value={r.price}
                         onChange={(e) => setVRows((rs) => rs.map((x, i) => (i === ri ? { ...x, price: e.target.value } : x)))}
                         data-testid={`admin-variant-price-${r.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                        className="w-32"
+                        className="w-28"
                         placeholder="Harga"
+                      />
+                      <Input
+                        type="number"
+                        value={r.stock}
+                        onChange={(e) => setVRows((rs) => rs.map((x, i) => (i === ri ? { ...x, stock: e.target.value } : x)))}
+                        data-testid={`admin-variant-stock-${r.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        className="w-24"
+                        placeholder="-1"
                       />
                     </div>
                   ))}

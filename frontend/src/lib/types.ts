@@ -8,6 +8,7 @@ export interface Variant {
   label: string;
   selections: Record<string, string>;
   price: number;
+  stock: number; // -1 = unlimited
 }
 
 export interface Book {
@@ -26,6 +27,7 @@ export interface Book {
   tiktok_url: string;
   variant_groups: VariantGroup[];
   variants: Variant[];
+  stock: number; // -1 = unlimited (ebook default)
   created_at: string;
 }
 
