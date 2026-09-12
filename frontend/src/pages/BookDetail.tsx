@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, ShoppingCart, Truck, Zap } from "lucide-react";
+import { toast } from "sonner";
 import { apiGet } from "@/lib/api";
 import type { Book } from "@/lib/types";
 import { LANGUAGE_META } from "@/lib/types";
@@ -22,9 +24,21 @@ export default function BookDetail() {
     queryFn: () => apiGet<Book[]>(`/books?type=${book?.type}&language=${book?.language}`),
     enabled: !!book,
   });
+  const [sel, setSel] = useState<Record<string, string>>({});
 
   const isDigital = book?.type === "digital";
   const meta = book ? LANGUAGE_META[book.language] : undefined;
+  const groups = book?.variant_groups ?? [];
+  const hasVariants = groups.length > 0;
+  const allSelected = groups.every((g) => sel[g.name]);
+  const activeVariant = book?.variants.find((v) => groups.every((g) => v.selections[g.name] === sel[g.name]));
+
+  const buy = () => {
+    if (hasVariants && !allSelected) {
+      toast.error("Pilih variasi dulu ya.");
+      return;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAF7F2]">
@@ -64,20 +78,60 @@ export default function BookDetail() {
                 <h1 className="mt-5 max-w-xl font-heading text-3xl font-bold tracking-tight sm:text-4xl" data-testid="detail-title">{book.title}</h1>
                 <p className="mt-2 text-sm text-[#635F59]">oleh {book.author}</p>
                 <p className="mt-6 max-w-xl text-base leading-relaxed text-[#1F1D1A]">{book.description}</p>
-                <p className="mt-6 font-mono text-3xl font-bold tracking-tight text-[#9C4221]" data-testid="detail-price">{rupiah(book.price)}</p>
+
+                {hasVariants && (
+                  <div className="mt-7 max-w-xl space-y-5" data-testid="variant-picker">
+                    {groups.map((g) => (
+                      <div key={g.name}>
+                        <p className="text-sm font-semibold">{g.name}{sel[g.name] ? `: ${sel[g.name]}` : ""}</p>
+                        <div className="mt-2 flex flex-wrap gap-2" data-testid={`variant-group-${g.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
+                          {g.options.map((o) => (
+                            <button
+                              key={o}
+                              onClick={() => setSel((s) => ({ ...s, [g.name]: o }))}
+                              data-testid={`variant-option-${g.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                                sel[g.name] === o
+                                  ? "border-[#DD6B20] bg-[#FEEBC8] text-[#9A3412] ring-1 ring-[#DD6B20]"
+                                  : "border-[#E8DFC8] bg-white text-[#635F59] hover:border-[#DD6B20]/60"
+                              }`}
+                            >
+                              {o}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="mt-7 font-mono text-3xl font-bold tracking-tight text-[#9C4221]" data-testid="detail-price">
+                  {hasVariants
+                    ? allSelected && activeVariant
+                      ? rupiah(activeVariant.price)
+                      : `Mulai ${rupiah(Math.min(...book.variants.map((v) => v.price)))}`
+                    : rupiah(book.price)}
+                </p>
+                {hasVariants && allSelected && activeVariant && (
+                  <p className="mt-1 text-xs text-[#635F59]" data-testid="detail-variant-label">Variasi: {activeVariant.label}</p>
+                )}
 
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
-                    to={`/checkout/${book.id}`}
+                    to={hasVariants && !allSelected ? "#" : `/checkout/${book.id}${activeVariant ? `?v=${activeVariant.id}` : ""}`}
+                    onClick={buy}
                     data-testid="detail-buy-button"
-                    className="inline-flex items-center gap-2 rounded-full bg-[#DD6B20] px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#DD6B20]/25 transition-all hover:-translate-y-0.5 hover:bg-[#C05621]"
+                    className={`inline-flex items-center gap-2 rounded-full bg-[#DD6B20] px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#DD6B20]/25 transition-all hover:-translate-y-0.5 hover:bg-[#C05621] ${hasVariants && !allSelected ? "opacity-60" : ""}`}
                   >
                     {isDigital ? <Zap className="size-4" /> : <Truck className="size-4" />}
                     {isDigital ? "Beli Ebook Sekarang" : "Pesan via JNE"}
                     <ArrowRight className="size-4" />
                   </Link>
                   <button
-                    onClick={() => handleAddToCart(book)}
+                    onClick={() => {
+                      if (hasVariants && (!allSelected || !activeVariant)) return toast.error("Pilih variasi dulu ya.");
+                      handleAddToCart(book, activeVariant);
+                    }}
                     data-testid="detail-add-cart-button"
                     className="inline-flex items-center gap-2 rounded-full border border-[#1F1D1A]/15 bg-white px-6 py-3.5 text-sm font-semibold text-[#1F1D1A] transition-all hover:-translate-y-0.5 hover:border-[#DD6B20] hover:text-[#C05621]"
                   >

@@ -37,13 +37,14 @@ export function CartDrawer() {
           <>
             <div className="mt-4 flex-1 space-y-3 overflow-y-auto">
               {items.map((i) => (
-                <div key={i.id} className="flex items-center gap-3 rounded-2xl border border-[#E8DFC8] bg-white p-3" data-testid={`cart-item-${i.id}`}>
+                <div key={i.key} className="flex items-center gap-3 rounded-2xl border border-[#E8DFC8] bg-white p-3" data-testid={`cart-item-${i.key}`}>
                   <img src={i.cover_url} alt="" className="h-16 w-12 rounded-lg border border-[#E8DFC8] object-cover" />
                   <div className="flex-1">
                     <p className="text-sm font-semibold leading-snug">{i.title}</p>
+                    {i.variant_label && <p className="mt-0.5 text-[11px] text-[#635F59]">{i.variant_label}</p>}
                     <p className="mt-0.5 font-mono text-sm font-bold text-[#9C4221]">{rupiah(i.price)}</p>
                   </div>
-                  <button onClick={() => removeFromCart(i.id)} data-testid={`cart-remove-${i.id}`} className="rounded-full p-2 text-[#635F59] transition-colors hover:bg-red-50 hover:text-red-600" aria-label="Hapus">
+                  <button onClick={() => removeFromCart(i.key)} data-testid={`cart-remove-${i.key}`} className="rounded-full p-2 text-[#635F59] transition-colors hover:bg-red-50 hover:text-red-600" aria-label="Hapus">
                     <X className="size-4" />
                   </button>
                 </div>
@@ -55,7 +56,7 @@ export function CartDrawer() {
                 <span className="font-mono font-bold text-[#9C4221]" data-testid="cart-total">{rupiah(total)}</span>
               </div>
               <SheetClose render={<Link to="/checkout/keranjang" data-testid="cart-checkout-button" className="mt-4 flex items-center justify-center gap-2 rounded-full bg-[#DD6B20] px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#C05621]" />}>
-                Checkout {items.length} Buku
+                Checkout {items.length} Item
               </SheetClose>
             </div>
           </>

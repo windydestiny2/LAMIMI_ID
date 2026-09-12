@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { ArrowLeft, CheckCircle2, Copy, ImageUp, Loader2, MessageCircle, PackageSearch, ShieldCheck, ShoppingBag } from "lucide-react";
@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function Checkout() {
   const { id } = useParams();
+  const [params] = useSearchParams();
+  const variantId = params.get("v") ?? "";
   const isCart = id === "keranjang";
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
@@ -40,10 +42,22 @@ export default function Checkout() {
   const [proof, setProof] = useState("");
   const [result, setResult] = useState<OrderResponse | null>(null);
 
-  const items = useMemo(
-    () => (isCart ? cartItems : book ? [{ id: book.id, type: book.type, title: book.title, price: book.price, cover_url: book.cover_url }] : []),
-    [isCart, cartItems, book],
-  );
+  const items = useMemo(() => {
+    if (isCart) return cartItems;
+    if (!book) return [];
+    const variant = book.variants.find((v) => v.id === variantId);
+    return [{
+      key: `${book.id}:${variant?.id ?? ""}`,
+      id: book.id,
+      variant_id: variant?.id ?? "",
+      variant_label: variant?.label ?? "",
+      type: book.type,
+      title: book.title,
+      price: variant?.price ?? book.price,
+      cover_url: book.cover_url,
+    }];
+  }, [isCart, cartItems, book, variantId]);
+
   const orderType = items[0]?.type ?? "digital";
   const isPhysical = orderType === "fisik";
   const subtotal = items.reduce((s, i) => s + i.price, 0);
@@ -57,7 +71,7 @@ export default function Checkout() {
         customer_name: form.name,
         customer_email: form.email,
         customer_phone: form.phone,
-        book_ids: items.map((i) => i.id),
+        items: items.map((i) => ({ book_id: i.id, variant_id: i.variant_id })),
         order_type: orderType,
         address: form.address,
         city: form.city,
@@ -146,10 +160,11 @@ export default function Checkout() {
                 <div className="rounded-3xl border border-[#E8DFC8] bg-white p-5" data-testid="checkout-summary">
                   <div className="space-y-3">
                     {items.map((i) => (
-                      <div key={i.id} className="flex gap-3">
+                      <div key={i.key} className="flex gap-3">
                         <img src={i.cover_url} alt={i.title} className="h-20 w-14 rounded-lg border border-[#E8DFC8] object-cover" />
                         <div>
                           <p className="text-sm font-semibold leading-snug">{i.title}</p>
+                          {i.variant_label && <p className="mt-0.5 text-[11px] font-medium text-[#C05621]">{i.variant_label}</p>}
                           <p className="mt-0.5 text-xs text-[#635F59]">{i.type === "fisik" ? "Buku Fisik · JNE" : "Ebook Digital"}</p>
                           <p className="mt-1 font-mono text-sm font-bold text-[#9C4221]">{rupiah(i.price)}</p>
                         </div>
@@ -157,7 +172,7 @@ export default function Checkout() {
                     ))}
                   </div>
                   <div className="mt-5 space-y-2 border-t border-[#E8DFC8] pt-4 text-sm">
-                    <div className="flex justify-between text-[#635F59]"><span>Subtotal ({items.length} buku)</span><span>{rupiah(subtotal)}</span></div>
+                    <div className="flex justify-between text-[#635F59]"><span>Subtotal ({items.length} item)</span><span>{rupiah(subtotal)}</span></div>
                     {isPhysical && (
                       <div className="flex justify-between text-[#635F59]">
                         <span>Ongkir JNE {selectedRegion ? `(${selectedRegion.name})` : ""}</span>
@@ -286,7 +301,7 @@ export default function Checkout() {
                           </div>
                           {m.name === "QRIS" && method === "QRIS" && (
                             m.qr_image
-                              ? <img src={m.qr_image} alt="Barcode QRIS" className="mt-3 w-56 rounded-xl border border-[#E8DFC8]" data-testid="qris-image" />
+                              ? <img src={m.qr_image} alt="Barcode QRIS" className="mt-3 w-56 rounded-xl border border-[#E8DFC8] bg-white p-2" data-testid="qris-image" />
                               : <p className="mt-3 rounded-xl bg-[#F5EDE0] p-3 text-xs text-[#635F59]">Barcode QRIS segera hadir — sementara gunakan metode lain ya.</p>
                           )}
                         </button>

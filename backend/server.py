@@ -50,6 +50,18 @@ def rupiah(n: int) -> str:
 
 # ---------------- Models ----------------
 
+class VariantGroup(BaseModel):
+    name: str
+    options: List[str] = []
+
+
+class Variant(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    label: str = ""
+    selections: dict = {}
+    price: int = 0
+
+
 class Book(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
@@ -64,6 +76,8 @@ class Book(BaseModel):
     shopee_url: str = ""
     tokopedia_url: str = ""
     tiktok_url: str = ""
+    variant_groups: List[VariantGroup] = []
+    variants: List[Variant] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -80,6 +94,8 @@ class BookInput(BaseModel):
     shopee_url: str = ""
     tokopedia_url: str = ""
     tiktok_url: str = ""
+    variant_groups: List[VariantGroup] = []
+    variants: List[Variant] = []
 
 
 class ShippingRegion(BaseModel):
@@ -117,6 +133,13 @@ class OrderItem(BaseModel):
     title: str
     price: int
     qty: int = 1
+    variant_id: str = ""
+    variant_label: str = ""
+
+
+class OrderItemInput(BaseModel):
+    book_id: str
+    variant_id: str = ""
 
 
 class Order(BaseModel):
@@ -146,7 +169,8 @@ class OrderCreate(BaseModel):
     customer_name: str
     customer_email: str = ""
     customer_phone: str
-    book_ids: List[str]
+    book_ids: List[str] = []
+    items: List[OrderItemInput] = []
     order_type: str = "digital"
     address: str = ""
     city: str = ""
@@ -187,7 +211,10 @@ class Stats(BaseModel):
 
 def build_wa_url(order: Order) -> str:
     number = os.environ.get("OWNER_WHATSAPP", "6285173290889")
-    items_txt = "\n".join(f"- {i.title} x{i.qty} ({rupiah(i.price)})" for i in order.items)
+    items_txt = "\n".join(
+        f"- {i.title}{(' — ' + i.variant_label) if i.variant_label else ''} x{i.qty} ({rupiah(i.price)})"
+        for i in order.items
+    )
     if order.status == "lunas":
         pay_line = f"*Status Pembayaran:* LUNAS ({order.payment_method})"
     elif order.status == "menunggu_verifikasi":
@@ -257,7 +284,6 @@ async def seed_admin():
 
 # ---------------- Seed data ----------------
 
-IMG = "https://static.prod-images.emergentagent.com/jobs/51f7e078-38c7-42d6-91d5-1c65bce9bd40/images"
 SHOPEE = os.environ.get("SHOPEE_URL", "https://s.shopee.co.id/8AV4Tsb6bM")
 
 SAMPLE_BOOKS: list = []  # katalog asli diimport via import_catalog.py
@@ -344,11 +370,26 @@ async def list_payment_methods():
 
 @api_router.post("/orders", response_model=OrderResponse)
 async def create_order(payload: OrderCreate):
-    unique_ids = list(dict.fromkeys(payload.book_ids))
+    wanted = payload.items or [OrderItemInput(book_id=i) for i in payload.book_ids]
+    if not wanted:
+        raise HTTPException(status_code=400, detail="Keranjang kosong")
+    unique_ids = list(dict.fromkeys(w.book_id for w in wanted))
     docs = await db.books.find({"id": {"$in": unique_ids}}, {"_id": 0}).to_list(100)
-    if len(docs) != len(unique_ids):
-        raise HTTPException(status_code=404, detail="Buku tidak ditemukan")
-    items = [OrderItem(book_id=d["id"], title=d["title"], price=d["price"]) for d in docs]
+    by_id = {d["id"]: d for d in docs}
+    items: List[OrderItem] = []
+    for w in wanted:
+        d = by_id.get(w.book_id)
+        if not d:
+            raise HTTPException(status_code=404, detail="Buku tidak ditemukan")
+        price = d["price"]
+        vlabel = ""
+        if w.variant_id:
+            variant = next((x for x in d.get("variants", []) if x.get("id") == w.variant_id), None)
+            if not variant:
+                raise HTTPException(status_code=400, detail="Variasi tidak ditemukan")
+            price = variant["price"]
+            vlabel = variant.get("label", "")
+        items.append(OrderItem(book_id=d["id"], title=d["title"], price=price, variant_id=w.variant_id, variant_label=vlabel))
     subtotal = sum(i.price * i.qty for i in items)
     shipping = 0
     if payload.order_type == "fisik":

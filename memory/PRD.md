@@ -37,3 +37,8 @@ Website toko live gratis bernama LAMIMI_ID: (1) toko ebook digital Mandarin/Kore
 - P1: Link Tokopedia & TikTok Shop asli per buku (saat ini fallback chat WA).
 - P1: Notifikasi WhatsApp otomatis (Fonnte/Watzap) tanpa perlu customer klik.
 - P2: Kode promo, qty per item keranjang, RajaOngkir ongkir real-time.
+
+## Update (12 Sep 2026, sesi 3)
+- Katalog asli user diimport: 132 produk (63 Mandarin, 37 Korea, 14 Jepang, 10 Inggris, 8 fisik) via import_catalog.py; sampul generik per bahasa berlogo LAMIMI_ID.
+- Barcode QRIS asli dari string QRIS user → /qris-lamimi.png, tampil di checkout saat QRIS dipilih.
+- Variasi produk ala Shopee: variant_groups (nama bebas: Level/Ukuran/Jenis) + variants (kombinasi dengan harga masing-masing); editor di dialog buku admin ("Buat/Perbarui Kombinasi Harga"); detail page dengan pill selector; cart/checkout membawa variant_id; OrderItem menyimpan variant_label; contoh terpasang di "HSK 3.0 Mock Test" (Level 1-4 @ Rp30.000).

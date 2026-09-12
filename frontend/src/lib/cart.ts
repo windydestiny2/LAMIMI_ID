@@ -1,12 +1,15 @@
 export interface CartItem {
-  id: string;
+  key: string; // book_id + variant_id
+  id: string; // book id
+  variant_id: string;
+  variant_label: string;
   type: string;
   title: string;
   price: number;
   cover_url: string;
 }
 
-const KEY = "lamimi_cart";
+const KEY = "lamimi_cart_v2";
 const EVENT = "lamimi-cart";
 
 export function getCart(): CartItem[] {
@@ -25,14 +28,14 @@ function save(items: CartItem[]) {
 
 export function addToCart(item: CartItem): { ok: boolean; reason?: "dupe" | "tipe" } {
   const items = getCart();
-  if (items.some((i) => i.id === item.id)) return { ok: false, reason: "dupe" };
+  if (items.some((i) => i.key === item.key)) return { ok: false, reason: "dupe" };
   if (items.length > 0 && items[0].type !== item.type) return { ok: false, reason: "tipe" };
   save([...items, item]);
   return { ok: true };
 }
 
-export function removeFromCart(id: string) {
-  save(getCart().filter((i) => i.id !== id));
+export function removeFromCart(key: string) {
+  save(getCart().filter((i) => i.key !== key));
 }
 
 export function clearCart() {

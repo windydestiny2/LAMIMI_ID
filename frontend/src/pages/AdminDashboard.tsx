@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, BookPlus, Eye, ImageUp, Landmark, Loader2, LogOut, MessageCircle, Package, Pencil, Trash2, Wallet } from "lucide-react";
+import { BookOpen, BookPlus, Eye, ImageUp, Landmark, Layers, Loader2, LogOut, MessageCircle, Package, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminStats, AdminUser, Book, Order, PaymentMethod, ShippingRegion } from "@/lib/types";
 import { LANGUAGE_META } from "@/lib/types";
@@ -22,6 +22,15 @@ interface BookForm {
 }
 const EMPTY_FORM: BookForm = { title: "", author: "", language: "mandarin", type: "digital", price: "", description: "", cover_url: "", badge: "", featured: false, shopee_url: "", tokopedia_url: "", tiktok_url: "" };
 
+interface VGroup { name: string; options: string }
+interface VRow { id: string; label: string; selections: Record<string, string>; price: string }
+
+function parseGroups(groups: VGroup[]) {
+  return groups
+    .map((g) => ({ name: g.name.trim(), options: g.options.split(",").map((o) => o.trim()).filter(Boolean) }))
+    .filter((g) => g.name && g.options.length > 0);
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -30,6 +39,8 @@ export default function AdminDashboard() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Book | null>(null);
   const [form, setForm] = useState<BookForm>(EMPTY_FORM);
+  const [vGroups, setVGroups] = useState<VGroup[]>([]);
+  const [vRows, setVRows] = useState<VRow[]>([]);
   const [shipEdit, setShipEdit] = useState<Record<string, { cost: string; eta: string }>>({});
   const [pmEdit, setPmEdit] = useState<Record<string, { account_name: string; account_number: string; qr_image: string; active: boolean }>>({});
   const [proofView, setProofView] = useState<string | null>(null);
@@ -70,7 +81,13 @@ export default function AdminDashboard() {
 
   const saveBook = useMutation({
     mutationFn: () => {
-      const body = { ...form, price: parseInt(form.price) || 0 };
+      const groups = parseGroups(vGroups);
+      const body = {
+        ...form,
+        price: parseInt(form.price) || 0,
+        variant_groups: groups,
+        variants: vRows.map((r) => ({ id: r.id, label: r.label, selections: r.selections, price: parseInt(r.price) || 0 })),
+      };
       return editing ? aPut(`/admin/books/${editing.id}`, body) : aPost("/admin/books", body);
     },
     onSuccess: () => {
@@ -78,6 +95,8 @@ export default function AdminDashboard() {
       setDialogOpen(false);
       setEditing(null);
       setForm(EMPTY_FORM);
+      setVGroups([]);
+      setVRows([]);
       refresh();
     },
     onError: (e) => toast.error(apiErrorMessage(e)),
@@ -107,7 +126,38 @@ export default function AdminDashboard() {
   const openEdit = (b: Book) => {
     setEditing(b);
     setForm({ title: b.title, author: b.author, language: b.language, type: b.type, price: String(b.price), description: b.description, cover_url: b.cover_url, badge: b.badge, featured: b.featured, shopee_url: b.shopee_url, tokopedia_url: b.tokopedia_url, tiktok_url: b.tiktok_url });
+    setVGroups(b.variant_groups.map((g) => ({ name: g.name, options: g.options.join(", ") })));
+    setVRows(b.variants.map((v) => ({ id: v.id, label: v.label, selections: v.selections, price: String(v.price) })));
     setDialogOpen(true);
+  };
+
+  const openNew = () => {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setVGroups([]);
+    setVRows([]);
+    setDialogOpen(true);
+  };
+
+  const generateCombos = () => {
+    const groups = parseGroups(vGroups);
+    if (groups.length === 0) {
+      setVRows([]);
+      return;
+    }
+    let combos: Record<string, string>[] = [{}];
+    for (const g of groups) {
+      combos = combos.flatMap((c) => g.options.map((o) => ({ ...c, [g.name]: o })));
+    }
+    if (combos.length > 200) return toast.error("Kombinasi terlalu banyak (maks 200). Kurangi opsi variasinya.");
+    setVRows((prev) =>
+      combos.map((c) => {
+        const label = groups.map((g) => c[g.name]).join(" / ");
+        const existing = prev.find((r) => r.label === label);
+        return { id: existing?.id ?? crypto.randomUUID(), label, selections: c, price: existing?.price ?? form.price ?? "0" };
+      }),
+    );
+    toast.success(`${combos.length} kombinasi variasi dibuat`);
   };
 
   const logout = async () => {
@@ -192,7 +242,7 @@ export default function AdminDashboard() {
                         {o.payment_method && <p className="mt-0.5 text-[11px] text-[#635F59]">{o.payment_method}</p>}
                       </td>
                       <td className="px-5 py-3.5"><p className="font-medium">{o.customer_name}</p><p className="text-xs text-[#635F59]">{o.customer_phone}</p></td>
-                      <td className="max-w-52 px-5 py-3.5"><p className="truncate text-xs">{o.items.map((i) => i.title).join(", ")}</p></td>
+                      <td className="max-w-60 px-5 py-3.5"><p className="line-clamp-2 text-xs">{o.items.map((i) => i.title + (i.variant_label ? ` (${i.variant_label})` : "")).join(", ")}</p></td>
                       <td className="px-5 py-3.5"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${o.order_type === "digital" ? "bg-[#E0F2FE] text-[#0369A1]" : "bg-[#FEEBC8] text-[#9A3412]"}`}>{o.order_type === "digital" ? "Ebook" : "Fisik"}</span></td>
                       <td className="px-5 py-3.5 font-mono font-bold text-[#9C4221]">{rupiah(o.total)}</td>
                       <td className="px-5 py-3.5">
@@ -226,7 +276,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="buku" className="mt-6">
-            <button onClick={() => { setEditing(null); setForm(EMPTY_FORM); setDialogOpen(true); }} data-testid="admin-add-book-button" className="inline-flex items-center gap-2 rounded-full bg-[#DD6B20] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#C05621]">
+            <button onClick={openNew} data-testid="admin-add-book-button" className="inline-flex items-center gap-2 rounded-full bg-[#DD6B20] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#C05621]">
               <BookPlus className="size-4" /> Tambah Buku
             </button>
             <div className="mt-5 overflow-x-auto rounded-2xl border border-[#E8DFC8] bg-white">
@@ -239,10 +289,20 @@ export default function AdminDashboard() {
                 <tbody>
                   {(books.data ?? []).map((b) => (
                     <tr key={b.id} className="border-b border-[#E8DFC8]/60 last:border-0" data-testid={`book-row-${b.id}`}>
-                      <td className="px-5 py-3"><div className="flex items-center gap-3"><img src={b.cover_url} alt="" className="h-12 w-9 rounded-md border border-[#E8DFC8] object-cover" /><p className="font-medium">{b.title}</p></div></td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <img src={b.cover_url} alt="" className="h-12 w-9 rounded-md border border-[#E8DFC8] object-cover" />
+                          <div>
+                            <p className="font-medium">{b.title}</p>
+                            {b.variants.length > 0 && <p className="mt-0.5 flex items-center gap-1 text-[11px] text-[#635F59]"><Layers className="size-3" /> {b.variants.length} variasi</p>}
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-5 py-3"><span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${LANGUAGE_META[b.language]?.chip ?? ""}`}>{LANGUAGE_META[b.language]?.label ?? b.language}</span></td>
                       <td className="px-5 py-3 text-xs">{b.type === "digital" ? "Ebook" : "Fisik"}</td>
-                      <td className="px-5 py-3 font-mono font-bold text-[#9C4221]">{rupiah(b.price)}</td>
+                      <td className="px-5 py-3 font-mono font-bold text-[#9C4221]">
+                        {b.variants.length > 0 ? `Mulai ${rupiah(Math.min(...b.variants.map((v) => v.price)))}` : rupiah(b.price)}
+                      </td>
                       <td className="px-5 py-3">
                         <div className="flex gap-1.5">
                           <button onClick={() => openEdit(b)} data-testid={`edit-book-${b.id}`} className="rounded-full border border-[#E8DFC8] p-2 text-[#635F59] hover:border-[#DD6B20] hover:text-[#C05621]"><Pencil className="size-3.5" /></button>
@@ -327,14 +387,14 @@ export default function AdminDashboard() {
       </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg" data-testid="book-form-dialog">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl" data-testid="book-form-dialog">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Buku" : "Tambah Buku Baru"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <div className="sm:col-span-2"><Label>Judul *</Label><Input data-testid="admin-book-title-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-1.5" /></div>
             <div><Label>Penulis</Label><Input data-testid="admin-book-author-input" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>Harga (Rp) *</Label><Input data-testid="admin-book-price-input" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="mt-1.5" /></div>
+            <div><Label>Harga dasar (Rp) *</Label><Input data-testid="admin-book-price-input" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="mt-1.5" /></div>
             <div>
               <Label>Bahasa</Label>
               <Select value={form.language} onValueChange={(v) => setForm({ ...form, language: v })}>
@@ -350,12 +410,72 @@ export default function AdminDashboard() {
               </Select>
             </div>
             <div className="sm:col-span-2"><Label>URL Sampul</Label><Input data-testid="admin-book-cover-input" value={form.cover_url} onChange={(e) => setForm({ ...form, cover_url: e.target.value })} placeholder="https://..." className="mt-1.5" /></div>
-            <div><Label>Badge</Label><Input data-testid="admin-book-badge-input" value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} placeholder="HSK 1-2" className="mt-1.5" /></div>
+            <div><Label>Badge</Label><Input data-testid="admin-book-badge-input" value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} placeholder="Best Seller" className="mt-1.5" /></div>
             <div className="flex items-end gap-2 pb-1">
               <Checkbox checked={form.featured} onCheckedChange={(c) => setForm({ ...form, featured: c === true })} data-testid="admin-book-featured-checkbox" />
               <Label>Unggulan di beranda</Label>
             </div>
             <div className="sm:col-span-2"><Label>Deskripsi</Label><Textarea data-testid="admin-book-description-input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1.5" /></div>
+
+            {/* Variant editor */}
+            <div className="rounded-2xl border border-[#E8DFC8] bg-[#FAF7F2] p-4 sm:col-span-2" data-testid="variant-editor">
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-2 text-sm font-semibold"><Layers className="size-4 text-[#DD6B20]" /> Variasi (opsional, ala Shopee)</p>
+                <button
+                  type="button"
+                  onClick={() => setVGroups((g) => [...g, { name: "", options: "" }])}
+                  data-testid="admin-add-variant-group"
+                  className="inline-flex items-center gap-1 rounded-full border border-[#E8DFC8] bg-white px-3 py-1.5 text-xs font-semibold text-[#635F59] hover:border-[#DD6B20] hover:text-[#C05621]"
+                >
+                  <Plus className="size-3.5" /> Tambah Grup
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-[#635F59]">Contoh: nama grup "Level" dengan opsi "Level 1, Level 2, Level 3". Kosongkan semua grup jika buku tanpa variasi.</p>
+              <div className="mt-3 space-y-2.5">
+                {vGroups.map((g, gi) => (
+                  <div key={gi} className="flex items-center gap-2">
+                    <Input
+                      value={g.name}
+                      onChange={(e) => setVGroups((gs) => gs.map((x, i) => (i === gi ? { ...x, name: e.target.value } : x)))}
+                      placeholder="Nama grup: Level / Ukuran / Jenis"
+                      data-testid={`admin-variant-group-name-${gi}`}
+                      className="w-40"
+                    />
+                    <Input
+                      value={g.options}
+                      onChange={(e) => setVGroups((gs) => gs.map((x, i) => (i === gi ? { ...x, options: e.target.value } : x)))}
+                      placeholder="Opsi, pisahkan koma: Level 1, Level 2, Level 3"
+                      data-testid={`admin-variant-group-options-${gi}`}
+                      className="flex-1"
+                    />
+                    <button type="button" onClick={() => setVGroups((gs) => gs.filter((_, i) => i !== gi))} data-testid={`admin-variant-group-remove-${gi}`} className="rounded-full p-2 text-[#635F59] hover:text-red-600"><X className="size-4" /></button>
+                  </div>
+                ))}
+              </div>
+              {vGroups.length > 0 && (
+                <button type="button" onClick={generateCombos} data-testid="admin-generate-variants" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#1F1D1A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#3a352f]">
+                  <Layers className="size-3.5" /> Buat / Perbarui Kombinasi Harga
+                </button>
+              )}
+              {vRows.length > 0 && (
+                <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto rounded-xl border border-[#E8DFC8] bg-white p-3">
+                  {vRows.map((r, ri) => (
+                    <div key={r.id} className="flex items-center gap-3">
+                      <span className="flex-1 text-xs font-medium">{r.label}</span>
+                      <Input
+                        type="number"
+                        value={r.price}
+                        onChange={(e) => setVRows((rs) => rs.map((x, i) => (i === ri ? { ...x, price: e.target.value } : x)))}
+                        data-testid={`admin-variant-price-${r.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        className="w-32"
+                        placeholder="Harga"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {form.type === "fisik" && (
               <>
                 <div className="sm:col-span-2"><Label>Link Shopee</Label><Input data-testid="admin-book-shopee-input" value={form.shopee_url} onChange={(e) => setForm({ ...form, shopee_url: e.target.value })} className="mt-1.5" /></div>

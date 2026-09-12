@@ -3,17 +3,10 @@ import { motion } from "motion/react";
 import { ShoppingCart, Store, Truck, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { SiShopee, SiTiktok } from "@icons-pack/react-simple-icons";
-import type { Book } from "@/lib/types";
+import type { Book, Variant } from "@/lib/types";
 import { LANGUAGE_META, SHOPEE_URL, WA_NUMBER } from "@/lib/types";
 import { rupiah } from "@/lib/format";
 import { addToCart } from "@/lib/cart";
-
-export function handleAddToCart(book: Book) {
-  const r = addToCart({ id: book.id, type: book.type, title: book.title, price: book.price, cover_url: book.cover_url });
-  if (r.ok) toast.success(`"${book.title}" masuk keranjang`);
-  else if (r.reason === "dupe") toast.error("Buku ini sudah ada di keranjang.");
-  else toast.error("Keranjang berisi jenis berbeda. Ebook dan buku fisik di-checkout terpisah — kosongkan keranjang dulu.");
-}
 
 export function marketplaceLinks(book: Book) {
   const wa = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(`Halo Admin LAMIMI_ID, apakah buku "${book.title}" tersedia di marketplace?`)}`;
@@ -24,9 +17,28 @@ export function marketplaceLinks(book: Book) {
   ];
 }
 
+export function handleAddToCart(book: Book, variant?: Variant) {
+  const r = addToCart({
+    key: `${book.id}:${variant?.id ?? ""}`,
+    id: book.id,
+    variant_id: variant?.id ?? "",
+    variant_label: variant?.label ?? "",
+    type: book.type,
+    title: book.title,
+    price: variant?.price ?? book.price,
+    cover_url: book.cover_url,
+  });
+  if (r.ok) toast.success(`"${book.title}${variant ? ` — ${variant.label}` : ""}" masuk keranjang`);
+  else if (r.reason === "dupe") toast.error("Item ini sudah ada di keranjang.");
+  else toast.error("Keranjang berisi jenis berbeda. Ebook dan buku fisik di-checkout terpisah — kosongkan keranjang dulu.");
+}
+
 export function BookCard({ book }: { book: Book }) {
   const meta = LANGUAGE_META[book.language];
   const isDigital = book.type === "digital";
+  const hasVariants = book.variants.length > 0;
+  const minPrice = hasVariants ? Math.min(...book.variants.map((v) => v.price)) : book.price;
+  const buyTo = hasVariants ? `/buku/${book.id}` : `/checkout/${book.id}`;
   return (
     <motion.article
       whileHover={{ y: -4 }}
@@ -50,30 +62,32 @@ export function BookCard({ book }: { book: Book }) {
           </span>
         )}
       </Link>
-      <button
-        onClick={() => handleAddToCart(book)}
-        data-testid={`add-cart-${book.id}`}
-        aria-label="Tambah ke keranjang"
-        className="absolute right-5 top-5 flex size-8 items-center justify-center rounded-full bg-white/90 text-[#1F1D1A] shadow backdrop-blur transition-colors hover:bg-[#DD6B20] hover:text-white"
-      >
-        <ShoppingCart className="size-4" />
-      </button>
+      {!hasVariants && (
+        <button
+          onClick={() => handleAddToCart(book)}
+          data-testid={`add-cart-${book.id}`}
+          aria-label="Tambah ke keranjang"
+          className="absolute right-5 top-5 flex size-8 items-center justify-center rounded-full bg-white/90 text-[#1F1D1A] shadow backdrop-blur transition-colors hover:bg-[#DD6B20] hover:text-white"
+        >
+          <ShoppingCart className="size-4" />
+        </button>
+      )}
       <div className="flex flex-1 flex-col px-1 pb-1 pt-3">
         <h3 className="font-heading text-base font-semibold leading-snug">
           <Link to={`/buku/${book.id}`} className="transition-colors hover:text-[#C05621]">{book.title}</Link>
         </h3>
-        <p className="mt-0.5 text-xs text-[#635F59]">{book.author}</p>
+        {hasVariants && <p className="mt-0.5 text-[11px] text-[#635F59]">{book.variants.length} pilihan variasi</p>}
         <p className="mt-2 font-mono text-lg font-bold tracking-tight text-[#9C4221]" data-testid={`book-price-${book.id}`}>
-          {rupiah(book.price)}
+          {hasVariants ? `Mulai ${rupiah(minPrice)}` : rupiah(book.price)}
         </p>
         <div className="mt-3 flex-1" />
         <Link
-          to={`/checkout/${book.id}`}
+          to={buyTo}
           data-testid={isDigital ? `buy-digital-button-${book.id}` : `buy-physical-button-${book.id}`}
           className="flex items-center justify-center gap-2 rounded-full bg-[#DD6B20] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#C05621]"
         >
           {isDigital ? <Zap className="size-4" /> : <Truck className="size-4" />}
-          {isDigital ? "Beli Ebook" : "Pesan via JNE"}
+          {hasVariants ? "Pilih Variasi" : isDigital ? "Beli Ebook" : "Pesan via JNE"}
         </Link>
         {!isDigital && (
           <div className="mt-2 flex items-center justify-center gap-1.5">

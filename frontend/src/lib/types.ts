@@ -1,3 +1,15 @@
+export interface VariantGroup {
+  name: string;
+  options: string[];
+}
+
+export interface Variant {
+  id: string;
+  label: string;
+  selections: Record<string, string>;
+  price: number;
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -12,6 +24,8 @@ export interface Book {
   shopee_url: string;
   tokopedia_url: string;
   tiktok_url: string;
+  variant_groups: VariantGroup[];
+  variants: Variant[];
   created_at: string;
 }
 
@@ -20,6 +34,8 @@ export interface OrderItem {
   title: string;
   price: number;
   qty: number;
+  variant_id: string;
+  variant_label: string;
 }
 
 export interface Order {
