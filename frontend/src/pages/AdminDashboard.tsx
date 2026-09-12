@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, BookPlus, Loader2, LogOut, MessageCircle, Package, Pencil, Trash2, Wallet } from "lucide-react";
+import { BookOpen, BookPlus, Eye, ImageUp, Landmark, Loader2, LogOut, MessageCircle, Package, Pencil, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import type { AdminStats, AdminUser, Book, Order, ShippingRegion } from "@/lib/types";
+import type { AdminStats, AdminUser, Book, Order, PaymentMethod, ShippingRegion } from "@/lib/types";
 import { LANGUAGE_META } from "@/lib/types";
 import { formatDate, ORDER_STATUS, rupiah } from "@/lib/format";
 import { aDelete, aGet, aPatch, aPost, aPut, apiErrorMessage, clearAdminToken, getAdminToken } from "@/lib/adminApi";
@@ -31,6 +31,8 @@ export default function AdminDashboard() {
   const [editing, setEditing] = useState<Book | null>(null);
   const [form, setForm] = useState<BookForm>(EMPTY_FORM);
   const [shipEdit, setShipEdit] = useState<Record<string, { cost: string; eta: string }>>({});
+  const [pmEdit, setPmEdit] = useState<Record<string, { account_name: string; account_number: string; qr_image: string; active: boolean }>>({});
+  const [proofView, setProofView] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getAdminToken()) {
@@ -50,12 +52,14 @@ export default function AdminDashboard() {
   const orders = useQuery({ queryKey: ["admin-orders"], queryFn: () => aGet<Order[]>("/admin/orders"), enabled: !!me });
   const books = useQuery({ queryKey: ["admin-books"], queryFn: () => aGet<Book[]>("/books"), enabled: !!me });
   const shipping = useQuery({ queryKey: ["shipping"], queryFn: () => aGet<ShippingRegion[]>("/shipping"), enabled: !!me });
+  const payMethods = useQuery({ queryKey: ["admin-payment-methods"], queryFn: () => aGet<PaymentMethod[]>("/admin/payment-methods"), enabled: !!me });
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["admin-stats"] });
     qc.invalidateQueries({ queryKey: ["admin-orders"] });
     qc.invalidateQueries({ queryKey: ["admin-books"] });
     qc.invalidateQueries({ queryKey: ["shipping"] });
+    qc.invalidateQueries({ queryKey: ["admin-payment-methods"] });
   };
 
   const updateStatus = useMutation({
@@ -91,6 +95,15 @@ export default function AdminDashboard() {
     onError: (e) => toast.error(apiErrorMessage(e)),
   });
 
+  const savePayMethod = useMutation({
+    mutationFn: (m: PaymentMethod) => {
+      const edit = pmEdit[m.id] ?? { account_name: m.account_name, account_number: m.account_number, qr_image: m.qr_image, active: m.active };
+      return aPut(`/admin/payment-methods/${m.id}`, { name: m.name, ...edit });
+    },
+    onSuccess: () => { toast.success("Metode pembayaran diperbarui"); refresh(); },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+
   const openEdit = (b: Book) => {
     setEditing(b);
     setForm({ title: b.title, author: b.author, language: b.language, type: b.type, price: String(b.price), description: b.description, cover_url: b.cover_url, badge: b.badge, featured: b.featured, shopee_url: b.shopee_url, tokopedia_url: b.tokopedia_url, tiktok_url: b.tiktok_url });
@@ -101,6 +114,16 @@ export default function AdminDashboard() {
     await aPost("/auth/logout").catch(() => undefined);
     clearAdminToken();
     navigate("/admin/login", { replace: true });
+  };
+
+  const onQrFile = (m: PaymentMethod) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) return toast.error("Ukuran gambar maksimal 2 MB.");
+    const reader = new FileReader();
+    reader.onload = () =>
+      setPmEdit((s) => ({ ...s, [m.id]: { account_name: s[m.id]?.account_name ?? m.account_name, account_number: s[m.id]?.account_number ?? m.account_number, active: s[m.id]?.active ?? m.active, qr_image: String(reader.result) } }));
+    reader.readAsDataURL(file);
   };
 
   if (checking) {
@@ -133,7 +156,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="admin-stats">
           {[
             { label: "Total Pesanan", value: stats.data?.total_orders ?? "—", icon: <Package className="size-5 text-[#DD6B20]" /> },
-            { label: "Sudah Lunas", value: stats.data?.paid_orders ?? "—", icon: <Wallet className="size-5 text-green-600" /> },
+            { label: "Sudah Bayar", value: stats.data?.paid_orders ?? "—", icon: <Wallet className="size-5 text-green-600" /> },
             { label: "Menunggu", value: stats.data?.pending_orders ?? "—", icon: <Loader2 className="size-5 text-amber-600" /> },
             { label: "Pendapatan", value: stats.data ? rupiah(stats.data.revenue) : "—", icon: <Wallet className="size-5 text-[#0D9488]" /> },
           ].map((s) => (
@@ -149,11 +172,12 @@ export default function AdminDashboard() {
             <TabsTrigger value="pesanan" data-testid="tab-orders">Pesanan</TabsTrigger>
             <TabsTrigger value="buku" data-testid="tab-books">Buku</TabsTrigger>
             <TabsTrigger value="ongkir" data-testid="tab-shipping">Ongkir JNE</TabsTrigger>
+            <TabsTrigger value="pembayaran" data-testid="tab-payment">Pembayaran</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pesanan" className="mt-6">
             <div className="overflow-x-auto rounded-2xl border border-[#E8DFC8] bg-white">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[820px] text-sm">
                 <thead>
                   <tr className="border-b border-[#E8DFC8] text-left text-xs uppercase tracking-wide text-[#635F59]">
                     <th className="px-5 py-3.5">Pesanan</th><th className="px-5 py-3.5">Customer</th><th className="px-5 py-3.5">Item</th><th className="px-5 py-3.5">Jenis</th><th className="px-5 py-3.5">Total</th><th className="px-5 py-3.5">Status</th><th className="px-5 py-3.5"></th>
@@ -162,7 +186,11 @@ export default function AdminDashboard() {
                 <tbody>
                   {(orders.data ?? []).map((o) => (
                     <tr key={o.id} className="border-b border-[#E8DFC8]/60 last:border-0" data-testid={`order-row-${o.order_number}`}>
-                      <td className="px-5 py-3.5"><p className="font-mono font-bold">{o.order_number}</p><p className="text-xs text-[#635F59]">{formatDate(o.created_at)}</p></td>
+                      <td className="px-5 py-3.5">
+                        <p className="font-mono font-bold">{o.order_number}</p>
+                        <p className="text-xs text-[#635F59]">{formatDate(o.created_at)}</p>
+                        {o.payment_method && <p className="mt-0.5 text-[11px] text-[#635F59]">{o.payment_method}</p>}
+                      </td>
                       <td className="px-5 py-3.5"><p className="font-medium">{o.customer_name}</p><p className="text-xs text-[#635F59]">{o.customer_phone}</p></td>
                       <td className="max-w-52 px-5 py-3.5"><p className="truncate text-xs">{o.items.map((i) => i.title).join(", ")}</p></td>
                       <td className="px-5 py-3.5"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${o.order_type === "digital" ? "bg-[#E0F2FE] text-[#0369A1]" : "bg-[#FEEBC8] text-[#9A3412]"}`}>{o.order_type === "digital" ? "Ebook" : "Fisik"}</span></td>
@@ -178,9 +206,16 @@ export default function AdminDashboard() {
                         </Select>
                       </td>
                       <td className="px-5 py-3.5">
-                        <a href={customerWa(o.customer_phone)} target="_blank" rel="noreferrer" data-testid={`order-wa-${o.order_number}`} className="inline-flex items-center gap-1 rounded-full bg-green-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-green-700">
-                          <MessageCircle className="size-3" /> Chat
-                        </a>
+                        <div className="flex gap-1.5">
+                          {o.payment_proof && (
+                            <button onClick={() => setProofView(o.payment_proof)} data-testid={`order-proof-${o.order_number}`} className="inline-flex items-center gap-1 rounded-full border border-[#E8DFC8] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#635F59] hover:border-[#DD6B20] hover:text-[#C05621]">
+                              <Eye className="size-3" /> Bukti
+                            </button>
+                          )}
+                          <a href={customerWa(o.customer_phone)} target="_blank" rel="noreferrer" data-testid={`order-wa-${o.order_number}`} className="inline-flex items-center gap-1 rounded-full bg-green-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-green-700">
+                            <MessageCircle className="size-3" /> Chat
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -242,8 +277,54 @@ export default function AdminDashboard() {
               ))}
             </div>
           </TabsContent>
+
+          <TabsContent value="pembayaran" className="mt-6">
+            <p className="max-w-lg text-sm text-[#635F59]">Rekening tujuan yang tampil ke customer saat checkout. QRIS: upload foto barcode agar muncul di halaman pembayaran.</p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(payMethods.data ?? []).map((m) => {
+                const edit = pmEdit[m.id] ?? { account_name: m.account_name, account_number: m.account_number, qr_image: m.qr_image, active: m.active };
+                return (
+                  <div key={m.id} className="rounded-2xl border border-[#E8DFC8] bg-white p-5" data-testid={`payment-card-${m.id}`}>
+                    <p className="flex items-center gap-2 font-heading font-semibold"><Landmark className="size-4 text-[#DD6B20]" /> {m.name}</p>
+                    <div className="mt-3 space-y-2.5">
+                      <div>
+                        <Label className="text-xs">Atas nama</Label>
+                        <Input data-testid={`pm-name-${m.id}`} value={edit.account_name} onChange={(e) => setPmEdit((s) => ({ ...s, [m.id]: { ...edit, account_name: e.target.value } }))} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Nomor rekening / HP</Label>
+                        <Input data-testid={`pm-number-${m.id}`} value={edit.account_number} onChange={(e) => setPmEdit((s) => ({ ...s, [m.id]: { ...edit, account_number: e.target.value } }))} className="mt-1" />
+                      </div>
+                      {m.name === "QRIS" && (
+                        <div>
+                          <Label className="text-xs">Foto barcode QRIS</Label>
+                          {edit.qr_image && <img src={edit.qr_image} alt="QRIS" className="mt-2 w-32 rounded-lg border border-[#E8DFC8]" />}
+                          <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-[#E8DFC8] px-3 py-2.5 text-xs text-[#635F59] hover:border-[#DD6B20]" data-testid={`pm-qr-upload-${m.id}`}>
+                            <ImageUp className="size-4 text-[#DD6B20]" /> {edit.qr_image ? "Ganti gambar" : "Upload gambar QRIS"}
+                            <input type="file" accept="image/*" className="hidden" onChange={onQrFile(m)} data-testid={`pm-qr-input-${m.id}`} />
+                          </label>
+                        </div>
+                      )}
+                      <label className="flex items-center gap-2 text-xs text-[#635F59]">
+                        <Checkbox checked={edit.active} onCheckedChange={(c) => setPmEdit((s) => ({ ...s, [m.id]: { ...edit, active: c === true } }))} data-testid={`pm-active-${m.id}`} />
+                        Tampilkan ke customer
+                      </label>
+                    </div>
+                    <button onClick={() => savePayMethod.mutate(m)} data-testid={`pm-save-${m.id}`} className="mt-3 w-full rounded-full bg-[#1F1D1A] py-2 text-xs font-semibold text-white hover:bg-[#3a352f]">Simpan</button>
+                  </div>
+                );
+              })}
+            </div>
+          </TabsContent>
         </Tabs>
       </main>
+
+      <Dialog open={!!proofView} onOpenChange={() => setProofView(null)}>
+        <DialogContent className="sm:max-w-md" data-testid="proof-dialog">
+          <DialogHeader><DialogTitle>Bukti Pembayaran</DialogTitle></DialogHeader>
+          {proofView && <img src={proofView} alt="Bukti pembayaran" className="w-full rounded-xl border border-[#E8DFC8]" />}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg" data-testid="book-form-dialog">

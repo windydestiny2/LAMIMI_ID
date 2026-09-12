@@ -22,7 +22,8 @@ from lib.db import client, db, ensure_indexes
 
 logger = logging.getLogger(__name__)
 JWT_ALGORITHM = "HS256"
-ORDER_STATUSES = ["menunggu_pembayaran", "lunas", "diproses", "dikirim", "selesai", "dibatalkan"]
+ORDER_STATUSES = ["menunggu_pembayaran", "menunggu_verifikasi", "lunas", "diproses", "dikirim", "selesai", "dibatalkan"]
+PAID_STATUSES = ["menunggu_verifikasi", "lunas", "diproses", "dikirim", "selesai"]
 
 
 def jwt_secret() -> str:
@@ -94,6 +95,23 @@ class ShippingInput(BaseModel):
     eta: str = ""
 
 
+class PaymentMethod(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    account_name: str = ""
+    account_number: str = ""
+    qr_image: str = ""
+    active: bool = True
+
+
+class PaymentMethodInput(BaseModel):
+    name: str
+    account_name: str = ""
+    account_number: str = ""
+    qr_image: str = ""
+    active: bool = True
+
+
 class OrderItem(BaseModel):
     book_id: str
     title: str
@@ -120,6 +138,7 @@ class Order(BaseModel):
     total: int = 0
     status: str = "menunggu_pembayaran"
     payment_method: str = ""
+    payment_proof: str = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -142,8 +161,9 @@ class OrderResponse(BaseModel):
     whatsapp_url: str
 
 
-class PayInput(BaseModel):
-    method: str = "QRIS"
+class ConfirmPaymentInput(BaseModel):
+    method: str
+    proof: str  # data URL of the payment screenshot
 
 
 class StatusUpdate(BaseModel):
@@ -168,7 +188,12 @@ class Stats(BaseModel):
 def build_wa_url(order: Order) -> str:
     number = os.environ.get("OWNER_WHATSAPP", "6285173290889")
     items_txt = "\n".join(f"- {i.title} x{i.qty} ({rupiah(i.price)})" for i in order.items)
-    pay_line = f"*Status Pembayaran:* LUNAS ({order.payment_method or 'Simulasi Midtrans'})" if order.status == "lunas" else "*Status Pembayaran:* Menunggu pembayaran"
+    if order.status == "lunas":
+        pay_line = f"*Status Pembayaran:* LUNAS ({order.payment_method})"
+    elif order.status == "menunggu_verifikasi":
+        pay_line = f"*Status Pembayaran:* {order.payment_method} — bukti transfer sudah saya upload, mohon diverifikasi"
+    else:
+        pay_line = "*Status Pembayaran:* Menunggu pembayaran"
     if order.order_type == "fisik":
         msg = (
             "Halo Admin LAMIMI_ID, saya ingin konfirmasi pesanan buku fisik saya:\n\n"
@@ -218,7 +243,7 @@ async def get_admin(request: Request):
 
 async def seed_admin():
     email = os.environ.get("ADMIN_EMAIL", "admin@lamimi.id")
-    password = os.environ.get("ADMIN_PASSWORD", "LamimiAdmin123")
+    password = os.environ.get("ADMIN_PASSWORD", "Windy_0803")
     existing = await db.users.find_one({"email": email})
     if existing is None:
         await db.users.insert_one({
@@ -295,6 +320,14 @@ SAMPLE_REGIONS = [
     ShippingRegion(name="Papua / Maluku", cost=55000, eta="5-10 hari"),
 ]
 
+SAMPLE_PAYMENT_METHODS = [
+    PaymentMethod(name="Transfer BCA", account_name="Windy Destiny Tarmidi", account_number="1673204663"),
+    PaymentMethod(name="Seabank", account_name="Windy Destiny Tarmidi", account_number="901485568151"),
+    PaymentMethod(name="GoPay / OVO", account_name="Windy Destiny Tarmidi", account_number="085173290889"),
+    PaymentMethod(name="ShopeePay", account_name="Windy Destiny Tarmidi", account_number="085173413197"),
+    PaymentMethod(name="QRIS", account_name="Scan barcode QRIS", account_number=""),
+]
+
 
 async def seed_data():
     await seed_admin()
@@ -302,6 +335,8 @@ async def seed_data():
         await db.shipping_regions.insert_many([r.model_dump() for r in SAMPLE_REGIONS])
     if await db.books.count_documents({}) == 0:
         await db.books.insert_many([b.model_dump() for b in SAMPLE_BOOKS])
+    if await db.payment_methods.count_documents({}) == 0:
+        await db.payment_methods.insert_many([m.model_dump() for m in SAMPLE_PAYMENT_METHODS])
 
 
 @asynccontextmanager
@@ -350,6 +385,12 @@ async def list_shipping():
     return [ShippingRegion(**d) for d in docs]
 
 
+@api_router.get("/payment-methods", response_model=List[PaymentMethod])
+async def list_payment_methods():
+    docs = await db.payment_methods.find({"active": True}, {"_id": 0}).to_list(50)
+    return [PaymentMethod(**d) for d in docs]
+
+
 @api_router.post("/orders", response_model=OrderResponse)
 async def create_order(payload: OrderCreate):
     unique_ids = list(dict.fromkeys(payload.book_ids))
@@ -384,17 +425,25 @@ async def get_order(order_number: str):
     return OrderResponse(order=order, whatsapp_url=build_wa_url(order))
 
 
-@api_router.post("/orders/{order_number}/pay", response_model=OrderResponse)
-async def pay_order(order_number: str, payload: PayInput):
+@api_router.post("/orders/{order_number}/confirm-payment", response_model=OrderResponse)
+async def confirm_payment(order_number: str, payload: ConfirmPaymentInput):
+    if not payload.method.strip():
+        raise HTTPException(status_code=400, detail="Pilih metode pembayaran dulu")
+    if not payload.proof.startswith("data:image") or len(payload.proof) < 50:
+        raise HTTPException(status_code=400, detail="Bukti pembayaran wajib diupload")
     doc = await db.orders.find_one({"order_number": order_number.upper()}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Pesanan tidak ditemukan")
     await db.orders.update_one(
         {"order_number": order_number.upper()},
-        {"$set": {"status": "lunas", "payment_method": f"{payload.method} (Simulasi Midtrans)"}},
+        {"$set": {
+            "status": "menunggu_verifikasi",
+            "payment_method": f"{payload.method} (Transfer Manual)",
+            "payment_proof": payload.proof,
+        }},
     )
-    doc["status"] = "lunas"
-    doc["payment_method"] = f"{payload.method} (Simulasi Midtrans)"
+    doc["status"] = "menunggu_verifikasi"
+    doc["payment_method"] = f"{payload.method} (Transfer Manual)"
     order = Order(**doc)
     return OrderResponse(order=order, whatsapp_url=build_wa_url(order))
 
@@ -443,8 +492,8 @@ async def logout(response: Response):
 @api_router.get("/admin/stats", response_model=Stats)
 async def admin_stats(user=Depends(get_admin)):
     total = await db.orders.count_documents({})
-    paid = await db.orders.count_documents({"status": {"$in": ["lunas", "diproses", "dikirim", "selesai"]}})
-    pipeline = [{"$match": {"status": {"$in": ["lunas", "diproses", "dikirim", "selesai"]}}}, {"$group": {"_id": None, "sum": {"$sum": "$total"}}}]
+    paid = await db.orders.count_documents({"status": {"$in": PAID_STATUSES}})
+    pipeline = [{"$match": {"status": {"$in": PAID_STATUSES}}}, {"$group": {"_id": None, "sum": {"$sum": "$total"}}}]
     agg = await db.orders.aggregate(pipeline).to_list(1)
     return Stats(
         total_orders=total, paid_orders=paid, pending_orders=total - paid,
@@ -506,6 +555,21 @@ async def admin_update_shipping(region_id: str, payload: ShippingInput, user=Dep
         raise HTTPException(status_code=404, detail="Wilayah tidak ditemukan")
     doc = await db.shipping_regions.find_one({"id": region_id}, {"_id": 0})
     return ShippingRegion(**doc)
+
+
+@api_router.get("/admin/payment-methods", response_model=List[PaymentMethod])
+async def admin_list_payment_methods(user=Depends(get_admin)):
+    docs = await db.payment_methods.find({}, {"_id": 0}).to_list(50)
+    return [PaymentMethod(**d) for d in docs]
+
+
+@api_router.put("/admin/payment-methods/{method_id}", response_model=PaymentMethod)
+async def admin_update_payment_method(method_id: str, payload: PaymentMethodInput, user=Depends(get_admin)):
+    result = await db.payment_methods.update_one({"id": method_id}, {"$set": payload.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Metode pembayaran tidak ditemukan")
+    doc = await db.payment_methods.find_one({"id": method_id}, {"_id": 0})
+    return PaymentMethod(**doc)
 
 
 app.include_router(api_router)

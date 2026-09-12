@@ -1,10 +1,19 @@
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { Store, Truck, Zap } from "lucide-react";
+import { ShoppingCart, Store, Truck, Zap } from "lucide-react";
+import { toast } from "sonner";
 import { SiShopee, SiTiktok } from "@icons-pack/react-simple-icons";
 import type { Book } from "@/lib/types";
 import { LANGUAGE_META, SHOPEE_URL, WA_NUMBER } from "@/lib/types";
 import { rupiah } from "@/lib/format";
+import { addToCart } from "@/lib/cart";
+
+export function handleAddToCart(book: Book) {
+  const r = addToCart({ id: book.id, type: book.type, title: book.title, price: book.price, cover_url: book.cover_url });
+  if (r.ok) toast.success(`"${book.title}" masuk keranjang`);
+  else if (r.reason === "dupe") toast.error("Buku ini sudah ada di keranjang.");
+  else toast.error("Keranjang berisi jenis berbeda. Ebook dan buku fisik di-checkout terpisah — kosongkan keranjang dulu.");
+}
 
 export function marketplaceLinks(book: Book) {
   const wa = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(`Halo Admin LAMIMI_ID, apakah buku "${book.title}" tersedia di marketplace?`)}`;
@@ -22,7 +31,7 @@ export function BookCard({ book }: { book: Book }) {
     <motion.article
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2 }}
-      className="group flex flex-col rounded-2xl border border-[#E8DFC8] bg-white p-3 shadow-sm transition-shadow hover:shadow-lg hover:shadow-[#DD6B20]/5"
+      className="group relative flex flex-col rounded-2xl border border-[#E8DFC8] bg-white p-3 shadow-sm transition-shadow hover:shadow-lg hover:shadow-[#DD6B20]/5"
       data-testid={`book-card-${book.id}`}
     >
       <Link to={`/buku/${book.id}`} className="relative block overflow-hidden rounded-xl" data-testid={`book-cover-link-${book.id}`}>
@@ -41,6 +50,14 @@ export function BookCard({ book }: { book: Book }) {
           </span>
         )}
       </Link>
+      <button
+        onClick={() => handleAddToCart(book)}
+        data-testid={`add-cart-${book.id}`}
+        aria-label="Tambah ke keranjang"
+        className="absolute right-5 top-5 flex size-8 items-center justify-center rounded-full bg-white/90 text-[#1F1D1A] shadow backdrop-blur transition-colors hover:bg-[#DD6B20] hover:text-white"
+      >
+        <ShoppingCart className="size-4" />
+      </button>
       <div className="flex flex-1 flex-col px-1 pb-1 pt-3">
         <h3 className="font-heading text-base font-semibold leading-snug">
           <Link to={`/buku/${book.id}`} className="transition-colors hover:text-[#C05621]">{book.title}</Link>

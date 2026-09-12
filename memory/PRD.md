@@ -9,10 +9,10 @@ Website toko live gratis bernama LAMIMI_ID: (1) toko ebook digital Mandarin/Kore
 - Pemilik (admin): kelola katalog, lihat pesanan, atur ongkir.
 
 ## Keputusan User
-- Payment: Midtrans — sementara SIMULASI penuh (MOCKED), gateway asli dipasang setelah user punya Server Key/Client Key.
+- Payment: TANPA gateway — transfer manual ke rekening/e-wallet pemilik (BCA 1673204663, Seabank 901485568151, GoPay/OVO 085173290889, ShopeePay 085173413197 a.n. Windy Destiny Tarmidi; QRIS menyusul). Customer WAJIB upload bukti pembayaran sebelum bisa lanjut ke WhatsApp. (Midtrans dibatalkan user.)
 - WhatsApp: link wa.me otomatis terisi detail pesanan ke 085173290889.
 - Ongkir: flat per wilayah (Jawa 12rb, Sumatera 25rb, Bali/NT 28rb, Kalimantan 35rb, Sulawesi 38rb, Papua/Maluku 55rb).
-- Katalog: panel admin dengan login.
+- Katalog: panel admin dengan login (password baru: Windy_0803); user akan kirim daftar buku untuk diimport sekaligus.
 - Desain: hangat (krem/amber/coral) + playful pastel per bahasa.
 
 ## Arsitektur
@@ -23,14 +23,17 @@ Website toko live gratis bernama LAMIMI_ID: (1) toko ebook digital Mandarin/Kore
 ## Terimplementasi (12 Sep 2026)
 - Storefront lengkap: hero kinetik masked-reveal + parallax, marquee editorial, bab bahasa 01-04, ebook unggulan, teaser buku fisik, manifesto, footer.
 - Etalase digital (filter bahasa) & fisik (banner marketplace Shopee/Tokopedia/TikTok).
-- Checkout digital: form → pembayaran simulasi Midtrans (QRIS/VA/GoPay/OVO) → sukses → tombol WhatsApp berisi list pesanan.
+- Checkout: form → pembayaran manual (pilih rekening, tombol salin nomor) → upload bukti wajib → status menunggu_verifikasi → tombol WhatsApp.
+- Keranjang multi-item (localStorage, ebook & fisik dipisah, drawer + badge di navbar, checkout /checkout/keranjang).
 - Checkout fisik: alamat + wilayah → ongkir JNE flat → total.
 - Lacak pesanan by nomor LM-XXXXXX.
-- Admin: login, statistik, tabel pesanan + ubah status + chat customer, CRUD buku, editor ongkir.
-- Terverifikasi: curl semua endpoint via URL publik, typecheck bersih, e2e browser checkout→bayar→admin.
+- Admin: login (password Windy_0803), statistik, tabel pesanan + ubah status + chat customer + lihat bukti bayar, CRUD buku, editor ongkir, editor metode pembayaran + upload QRIS.
+- Link "Masuk Admin" di footer situs.
+- Terverifikasi: curl semua endpoint via URL publik (login password baru, tolak password lama, confirm-payment tolak tanpa bukti), typecheck bersih, e2e browser keranjang→checkout→upload bukti→sukses→admin.
 
 ## Backlog
-- P0: Integrasi Midtrans asli (butuh Server Key + Client Key dari user) agar dana masuk otomatis ke rekening.
+- P0: User kirim foto barcode QRIS → upload via admin tab Pembayaran.
+- P0: User kirim daftar buku (zip/teks) → import sekaligus ke katalog.
 - P1: Link Tokopedia & TikTok Shop asli per buku (saat ini fallback chat WA).
 - P1: Notifikasi WhatsApp otomatis (Fonnte/Watzap) tanpa perlu customer klik.
-- P2: Keranjang multi-item, kode promo, upload cover via object storage, RajaOngkir ongkir real-time.
+- P2: Kode promo, qty per item keranjang, RajaOngkir ongkir real-time.

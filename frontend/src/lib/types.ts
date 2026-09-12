@@ -41,6 +41,7 @@ export interface Order {
   total: number;
   status: string;
   payment_method: string;
+  payment_proof: string;
   created_at: string;
 }
 
@@ -54,6 +55,15 @@ export interface ShippingRegion {
   name: string;
   cost: number;
   eta: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  account_name: string;
+  account_number: string;
+  qr_image: string;
+  active: boolean;
 }
 
 export interface AdminUser {

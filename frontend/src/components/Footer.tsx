@@ -24,6 +24,7 @@ export function Footer() {
             <li><Link to="/etalase/digital" className="transition-colors hover:text-white">Etalase Ebook Digital</Link></li>
             <li><Link to="/etalase/fisik" className="transition-colors hover:text-white">Etalase Buku Fisik</Link></li>
             <li><Link to="/lacak" className="transition-colors hover:text-white">Lacak Pesanan</Link></li>
+            <li><Link to="/admin/login" data-testid="footer-admin-link" className="transition-colors hover:text-white">Masuk Admin</Link></li>
             <li><a href={SHOPEE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 transition-colors hover:text-white"><SiShopee size={14} /> Toko Shopee Kami</a></li>
           </ul>
         </div>

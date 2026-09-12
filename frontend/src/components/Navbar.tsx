@@ -2,6 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { BookOpen, Menu, MessageCircle } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { CartDrawer } from "@/components/CartDrawer";
 import { WA_NUMBER } from "@/lib/types";
 
 const LINKS = [
@@ -40,6 +41,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <CartDrawer />
           <a href={`https://wa.me/${WA_NUMBER}`} target="_blank" rel="noreferrer" data-testid="nav-whatsapp-button" className="hidden sm:block">
             <Button className="rounded-full bg-[#1F1D1A] text-white hover:bg-[#3a352f]">
               <MessageCircle className="size-4" /> Chat Admin

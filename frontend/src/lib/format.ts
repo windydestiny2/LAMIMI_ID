@@ -2,6 +2,7 @@ export const rupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
 export const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
   menunggu_pembayaran: { label: "Menunggu Pembayaran", cls: "bg-amber-100 text-amber-800 border-amber-200" },
+  menunggu_verifikasi: { label: "Menunggu Verifikasi", cls: "bg-teal-100 text-teal-800 border-teal-200" },
   lunas: { label: "Lunas", cls: "bg-green-100 text-green-800 border-green-200" },
   diproses: { label: "Diproses", cls: "bg-sky-100 text-sky-800 border-sky-200" },
   dikirim: { label: "Dikirim", cls: "bg-indigo-100 text-indigo-800 border-indigo-200" },

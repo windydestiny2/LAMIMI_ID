@@ -1,13 +1,13 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Truck, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShoppingCart, Truck, Zap } from "lucide-react";
 import { apiGet } from "@/lib/api";
 import type { Book } from "@/lib/types";
 import { LANGUAGE_META } from "@/lib/types";
 import { rupiah } from "@/lib/format";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { BookCard, marketplaceLinks } from "@/components/BookCard";
+import { BookCard, handleAddToCart, marketplaceLinks } from "@/components/BookCard";
 import { Reveal } from "@/components/Reveal";
 
 export default function BookDetail() {
@@ -76,6 +76,13 @@ export default function BookDetail() {
                     {isDigital ? "Beli Ebook Sekarang" : "Pesan via JNE"}
                     <ArrowRight className="size-4" />
                   </Link>
+                  <button
+                    onClick={() => handleAddToCart(book)}
+                    data-testid="detail-add-cart-button"
+                    className="inline-flex items-center gap-2 rounded-full border border-[#1F1D1A]/15 bg-white px-6 py-3.5 text-sm font-semibold text-[#1F1D1A] transition-all hover:-translate-y-0.5 hover:border-[#DD6B20] hover:text-[#C05621]"
+                  >
+                    <ShoppingCart className="size-4" /> Tambah ke Keranjang
+                  </button>
                 </div>
 
                 {!isDigital && (
