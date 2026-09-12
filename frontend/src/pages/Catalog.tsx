@@ -44,7 +44,7 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-[#635F59]">
             {isDigital
-              ? "Bayar lewat gateway (QRIS / VA / e-wallet), lalu konfirmasi otomatis ke WhatsApp admin — ebook langsung dikirim ke email kamu."
+              ? "Pilih rekening tujuan (BCA / Seabank / QRIS / GoPay / OVO / ShopeePay), transfer sesuai total, upload bukti bayar — ebook langsung dikirim ke email kamu setelah diverifikasi admin."
               : "Isi alamat rumah saat checkout dan dapatkan perkiraan ongkir JNE per wilayah. Atau beli langsung lewat marketplace favoritmu."}
           </p>
         </Reveal>
