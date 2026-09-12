@@ -1,0 +1,291 @@
+{
+  "theme": "hybrid_warm_light",
+  "archetype": "Warm Bookstore Cozy + Playful Pastel Language Learning Accents",
+  "colors": {
+    "surfaces": [
+      {
+        "name": "page",
+        "kind": "solid",
+        "bg": "#FAF7F2",
+        "on_bg": "#1F1D1A",
+        "on_bg_muted": "#635F59",
+        "roles": {
+          "link": "#C05621",
+          "error": "#B91C1C",
+          "success": "#15803D"
+        }
+      },
+      {
+        "name": "panel",
+        "kind": "solid",
+        "bg": "#FFFFFF",
+        "on_bg": "#1F1D1A",
+        "on_bg_muted": "#635F59",
+        "roles": {
+          "link": "#C05621",
+          "error": "#B91C1C",
+          "success": "#15803D"
+        }
+      },
+      {
+        "name": "warm_accent_card",
+        "kind": "solid",
+        "bg": "#F5EDE0",
+        "on_bg": "#1F1D1A",
+        "on_bg_muted": "#57524A",
+        "roles": {
+          "link": "#9C4221",
+          "error": "#B91C1C",
+          "success": "#15803D"
+        }
+      },
+      {
+        "name": "mandarin_pastel_card",
+        "kind": "solid",
+        "bg": "#FEEBC8",
+        "on_bg": "#431407",
+        "on_bg_muted": "#78350F",
+        "roles": {
+          "link": "#9A3412",
+          "error": "#B91C1C",
+          "success": "#15803D"
+        }
+      },
+      {
+        "name": "korea_pastel_card",
+        "kind": "solid",
+        "bg": "#EDE9FE",
+        "on_bg": "#2E1065",
+        "on_bg_muted": "#4C1D95",
+        "roles": {
+          "link": "#581C87",
+          "error": "#B91C1C",
+          "success": "#15803D"
+        }
+      },
+      {
+        "name": "jepang_pastel_card",
+        "kind": "solid",
+        "bg": "#E0F2FE",
+        "on_bg": "#082F49",
+        "on_bg_muted": "#0369A1",
+        "roles": {
+          "link": "#0284C7",
+          "error": "#B91C1C",
+          "success": "#15803D"
+        }
+      },
+      {
+        "name": "inggris_pastel_card",
+        "kind": "solid",
+        "bg": "#DCFCE7",
+        "on_bg": "#052E16",
+        "on_bg_muted": "#166534",
+        "roles": {
+          "link": "#15803D",
+          "error": "#B91C1C",
+          "success": "#15803D"
+        }
+      },
+      {
+        "name": "inverse_footer",
+        "kind": "solid",
+        "bg": "#1F1D1A",
+        "on_bg": "#FAF7F2",
+        "on_bg_muted": "#D6CFC7",
+        "roles": {
+          "link": "#FBD38D",
+          "error": "#FCA5A5",
+          "success": "#86EFAC"
+        }
+      },
+      {
+        "name": "hero_banner",
+        "kind": "image",
+        "contrast_against": "#261D15",
+        "guarantee": "scrim: linear-gradient(135deg, rgba(38, 29, 21, 0.88) 0%, rgba(67, 39, 21, 0.72) 100%)",
+        "on_bg": "#FFFDF9",
+        "on_bg_muted": "#EADECF",
+        "roles": {
+          "link": "#FBD38D",
+          "error": "#FCA5A5",
+          "success": "#86EFAC"
+        }
+      },
+      {
+        "name": "nav_glass",
+        "kind": "glass",
+        "contrast_against": "#FAF7F2",
+        "guarantee": "backdrop-blur-xl bg-[#FAF7F2]/85 border-b border-[#E8DFC8]/60 shadow-xs",
+        "on_bg": "#1F1D1A",
+        "on_bg_muted": "#635F59",
+        "roles": {
+          "link": "#C05621",
+          "error": "#B91C1C",
+          "success": "#15803D"
+        }
+      }
+    ],
+    "accent": "#DD6B20",
+    "on_accent": "#FFFFFF",
+    "secondary_accent": "#0D9488",
+    "on_secondary_accent": "#FFFFFF"
+  },
+  "typography": {
+    "heading_font": "Lora Variable",
+    "heading_import": "@fontsource-variable/lora",
+    "body_font": "Plus Jakarta Sans Variable",
+    "body_import": "@fontsource-variable/plus-jakarta-sans",
+    "mono_font": "JetBrains Mono Variable",
+    "mono_import": "@fontsource-variable/jetbrains-mono",
+    "scale_px": {
+      "display": 56,
+      "h1": 44,
+      "h2": 32,
+      "h3": 24,
+      "h4": 20,
+      "body": 16,
+      "caption": 14
+    },
+    "rules": {
+      "display_heading": "font-heading font-bold tracking-tight text-4xl sm:text-5xl lg:text-[54px] leading-[1.12]",
+      "section_heading": "font-heading font-semibold tracking-tight text-2xl sm:text-3xl lg:text-4xl leading-[1.2]",
+      "card_heading": "font-heading font-semibold text-lg sm:text-xl leading-snug",
+      "body_copy": "font-sans text-base leading-relaxed text-[#1F1D1A]",
+      "muted_copy": "font-sans text-sm sm:text-base leading-relaxed text-[#635F59]",
+      "overline_tag": "font-sans uppercase text-xs tracking-[0.18em] font-semibold text-[#DD6B20]",
+      "price_tag": "font-mono font-bold tracking-tight text-lg sm:text-xl text-[#9C4221]"
+    }
+  },
+  "entry_surfaces": {
+    "/": "asymmetric kinetic hero with live catalog teaser left, floating warm bookstore imagery + featured book right",
+    "/admin/login": "branded split login — bookstore manifesto quote left, crisp secure admin form right",
+    "/admin": "dense functional command center — statistics bento top, book CRUD & order tables below",
+    "/checkout": "modal/drawer split flow — digital simulated gateway with direct WhatsApp handoff; physical shipping estimator with JNE flat rates"
+  },
+  "layouts": {
+    "max_width": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "hero_composition": "grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center min-h-[82vh] pt-24 pb-16",
+    "catalog_bento": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6",
+    "physical_showcase": "grid grid-cols-1 md:grid-cols-3 gap-6",
+    "admin_layout": "sidebar + main content with responsive mobile drawer"
+  },
+  "motion": {
+    "library": "motion/react",
+    "entrance_preset": "initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}",
+    "stagger_preset": "transition: { staggerChildren: 0.08 }",
+    "hover_card": "whileHover={{ y: -4, transition: { duration: 0.2 } }}",
+    "editorial_marquee": "slow continuous smooth drift (duration 35-45s) for category ribbon using CSS or motion transform",
+    "lenis_scrolling": "recommended for smooth weighted momentum"
+  },
+  "accessibility": {
+    "contrast_standard": "WCAG AA (minimum 4.5:1 for body copy, 3:1 for large display)",
+    "data_testid_policy": "MANDATORY on all buttons, category filters, book cards, checkout inputs, payment buttons, and admin actions",
+    "focus_states": "focus-visible:ring-2 focus-visible:ring-[#DD6B20] focus-visible:ring-offset-2 outline-none",
+    "reduced_motion": "respects prefers-reduced-motion using conditional CSS/motion configs"
+  },
+  "image_urls": {
+    "hero_ambient": {
+      "url": "https://images.unsplash.com/photo-1758610605872-3195caed0bdd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHw0fHxib29rc3RvcmUlMjByZWFkaW5nJTIwd2FybSUyMGNvZmZlZXxlbnwwfHx8fDE3ODkxODE4ODl8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Cozy cafe interior with warm bookshelves and seating areas for background ambiance and hero spotlight",
+      "category": "hero_background"
+    },
+    "study_moment": {
+      "url": "https://images.unsplash.com/photo-1514369118554-e20d93546b30?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMGxhbmd1YWdlJTIwbGVhcm5pbmclMjBib29rJTIwc3R1ZHl8ZW58MHx8fHwxNzg5MTgxODg5fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Student actively studying language workbook on a warm wooden table",
+      "category": "lifestyle_learning"
+    },
+    "language_scrabble": {
+      "url": "https://images.unsplash.com/photo-1673515334717-da4d85aaf38b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwzfHxhc2lhbiUyMGxhbmd1YWdlJTIwbGVhcm5pbmclMjBib29rJTIwc3R1ZHl8ZW58MHx8fHwxNzg5MTgxODg5fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Learn Languages letter tiles on rich wood background for category and feature banner",
+      "category": "feature_accent"
+    },
+    "cozy_library_corner": {
+      "url": "https://images.unsplash.com/photo-1763368230669-3a2e97368032?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwxfHxib29rcyUyMHN0YWNrJTIwY296eSUyMGxpYnJhcnl8ZW58MHx8fHwxNzg5MTgxODg5fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Sunlit bookstore shelves with books stacked floor to ceiling",
+      "category": "manifesto_about"
+    },
+    "book_stack_shelf": {
+      "url": "https://images.unsplash.com/photo-1688644707880-3d0df0fb2dc5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwyfHxib29rcyUyMHN0YWNrJTIwY296eSUyMGxpYnJhcnl8ZW58MHx8fHwxNzg5MTgxODg5fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Vibrant colorful book stack for physical books showcase background or preview",
+      "category": "physical_books_ambient"
+    }
+  },
+  "component_structure": {
+    "header_nav": "frontend/src/components/Navbar.tsx",
+    "hero_section": "frontend/src/components/HeroSection.tsx",
+    "editorial_marquee": "frontend/src/components/EditorialRibbon.tsx",
+    "digital_catalog": "frontend/src/components/DigitalCatalog.tsx",
+    "physical_showcase": "frontend/src/components/PhysicalShowcase.tsx",
+    "digital_checkout_modal": "frontend/src/components/DigitalCheckoutModal.tsx",
+    "physical_order_modal": "frontend/src/components/PhysicalOrderModal.tsx",
+    "order_lookup_modal": "frontend/src/components/OrderLookupModal.tsx",
+    "manifesto_section": "frontend/src/components/ManifestoSection.tsx",
+    "footer": "frontend/src/components/Footer.tsx",
+    "admin_dashboard": "frontend/src/pages/AdminDashboard.tsx",
+    "admin_login": "frontend/src/pages/AdminLogin.tsx"
+  },
+  "business_logic_contracts": {
+    "store_name": "LAMIMI_ID",
+    "owner_whatsapp": "085173290889",
+    "shopee_official_link": "https://s.shopee.co.id/8AV4Tsb6bM",
+    "whatsapp_template": "Halo Admin LAMIMI_ID, saya ingin konfirmasi pesanan ebook digital saya:\n\n*ID Pesanan:* {order_id}\n*Nama:* {customer_name}\n*Email:* {customer_email}\n*Item:* {item_title} ({item_category})\n*Total Bayar:* Rp {total_amount}\n*Status Pembayaran:* LUNAS (Simulasi Midtrans)\n\nMohon kirimkan link akses / file ebook ke email saya ya. Terima kasih!",
+    "shipping_flat_rates": {
+      "Jawa": 12000,
+      "Sumatera": 25000,
+      "Bali / Nusa Tenggara": 28000,
+      "Kalimantan": 35000,
+      "Sulawesi": 38000,
+      "Papua / Maluku": 55000
+    },
+    "language_categories": [
+      {
+        "id": "mandarin",
+        "name": "Bahasa Mandarin (中文)",
+        "badge": "HSK 1-6 & Percakapan",
+        "pastel_bg": "bg-[#FEEBC8]",
+        "border_color": "border-[#FBD38D]",
+        "accent_text": "text-[#9A3412]"
+      },
+      {
+        "id": "korea",
+        "name": "Bahasa Korea (한국어)",
+        "badge": "TOPIK & Hangul Mastery",
+        "pastel_bg": "bg-[#EDE9FE]",
+        "border_color": "border-[#DDD6FE]",
+        "accent_text": "text-[#581C87]"
+      },
+      {
+        "id": "jepang",
+        "name": "Bahasa Jepang (日本語)",
+        "badge": "JLPT N5-N1 & Kanji",
+        "pastel_bg": "bg-[#E0F2FE]",
+        "border_color": "border-[#BAE6FD]",
+        "accent_text": "text-[#0284C7]"
+      },
+      {
+        "id": "inggris",
+        "name": "Bahasa Inggris (English)",
+        "badge": "Grammar, IELTS & Daily Talk",
+        "pastel_bg": "bg-[#DCFCE7]",
+        "border_color": "border-[#BBF7D0]",
+        "accent_text": "text-[#15803D]"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Follow the theme setup in frontend/src/index.css: import '@fontsource-variable/lora', '@fontsource-variable/plus-jakarta-sans', and '@fontsource-variable/jetbrains-mono'.",
+    "Configure --font-heading to 'Lora Variable', serif, and --font-sans to 'Plus Jakarta Sans Variable', sans-serif.",
+    "Implement the simulated payment modal with QRIS / Virtual Account mock state that simulates a 2-second gateway validation, then displays success and automatically opens wa.me link with prefilled order template to 085173290889.",
+    "For physical books, provide a Dual CTA: 'Pesan Buku Fisik (JNE Ongkir)' which calculates flat JNE rate based on selected Indonesian island/region, AND direct marketplace buttons: Shopee (https://s.shopee.co.id/8AV4Tsb6bM), Tokopedia, and TikTok Shop.",
+    "Build a full Admin Panel at /admin with login (pre-seeded admin credentials), CRUD for ebooks and physical books, order listing with filter by digital/physical, and shipping rate editor.",
+    "Ensure every interactive element has explicit 'data-testid' like 'buy-digital-button-{book_id}', 'shipping-region-select', 'confirm-payment-button', 'whatsapp-handoff-button', 'admin-book-title-input'.",
+    "Keep all UI copy in natural, elegant Bahasa Indonesia with warm bookstore tone."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": {
+    "layout_philosophy": "Combine warm bookstore cozy ambiance (#FAF7F2 ivory cream, amber #DD6B20, terracotta #C05621) with fresh pastel card accents for the 4 language categories.",
+    "anti_ai_rules": "Never center-align whole pages. Use asymmetric 12-column layouts, rich micro-interactions on hover, refined borders (#E8DFC8), and warm serif headers paired with clean sans body.",
+    "motion_polish": "Add subtle entry transitions, hover lifts, sticky glass nav with blur, and smooth category filter animations using motion/react.",
+    "toast_handling": "Use sonner Toaster for checkout feedback, order tracking confirmation, and admin CRUD notifications."
+  }
+}
