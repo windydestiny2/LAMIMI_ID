@@ -25,6 +25,7 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedLanguage = searchParams.get("bahasa") ?? "semua";
   const selectedCategory = searchParams.get("kategori") ?? "semua";
+  const selectedSub = searchParams.get("sub") ?? "semua";
   const selectedSort = searchParams.get("sort") ?? "newest";
   const searchTitle = (searchParams.get("q") ?? "").trim().toLowerCase();
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
@@ -47,14 +48,25 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
   });
 
   const visibleCategories = useMemo(
-    () => categories.filter((c) => !c.parent || selectedLanguage === "semua" || c.parent === selectedLanguage),
+    () => categories.filter((c) => c.parent_type !== "category" && (!c.parent || selectedLanguage === "semua" || c.parent === selectedLanguage)),
     [categories, selectedLanguage],
   );
+
+  const childCategories = useMemo(
+    () => (selectedCategory === "semua" ? [] : categories.filter((c) => c.parent_type === "category" && c.parent === selectedCategory)),
+    [categories, selectedCategory],
+  );
+  const childSlugs = useMemo(() => childCategories.map((c) => c.slug), [childCategories]);
 
   const filtered = useMemo(() => {
     const rows = (books ?? []).filter((b) => {
       const languageMatch = selectedLanguage === "semua" || b.language === selectedLanguage;
-      const categoryMatch = selectedCategory === "semua" || (b.categories ?? []).includes(selectedCategory);
+      const cats = b.categories ?? [];
+      const categoryMatch =
+        selectedCategory === "semua" ||
+        (selectedSub !== "semua"
+          ? cats.includes(selectedSub)
+          : cats.includes(selectedCategory) || childSlugs.some((s) => cats.includes(s)));
       const titleMatch = !searchTitle || b.title.toLowerCase().includes(searchTitle);
       return languageMatch && categoryMatch && titleMatch;
     });
@@ -77,7 +89,7 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
     }
 
     return sorted;
-  }, [books, selectedCategory, selectedLanguage, selectedSort, searchTitle]);
+  }, [books, selectedCategory, selectedSub, selectedLanguage, selectedSort, searchTitle, childSlugs]);
 
   const pageSize = isDigital ? DIGITAL_PAGE_SIZE : filtered.length || 1;
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -100,6 +112,7 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
       next.set("bahasa", language);
     }
     next.delete("kategori");
+    next.delete("sub");
     next.set("page", "1");
     setSearchParams(next);
     setLanguageMenuOpen(false);
@@ -111,8 +124,20 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
       next.delete("kategori");
     } else {
       next.set("kategori", category);
-      const parent = categories.find((c) => c.slug === category)?.parent;
-      if (parent) next.set("bahasa", parent);
+      const cat = categories.find((c) => c.slug === category);
+      if (cat?.parent && cat.parent_type !== "category") next.set("bahasa", cat.parent);
+    }
+    next.delete("sub");
+    next.set("page", "1");
+    setSearchParams(next);
+  };
+
+  const handleSubcategoryChange = (sub: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (sub === "semua") {
+      next.delete("sub");
+    } else {
+      next.set("sub", sub);
     }
     next.set("page", "1");
     setSearchParams(next);
@@ -239,6 +264,28 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
             </button>
           ))}
         </div>
+
+        {childCategories.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="subcategory-filters">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#635F59]">Subkategori:</span>
+            <button
+              onClick={() => handleSubcategoryChange("semua")}
+              className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${selectedSub === "semua" ? "bg-[#9C4221] text-white" : "border border-[#E8DFC8] bg-white text-[#635F59] hover:text-[#1F1D1A]"}`}
+            >
+              Semua
+            </button>
+            {childCategories.map((c) => (
+              <button
+                key={c.slug}
+                onClick={() => handleSubcategoryChange(c.slug)}
+                data-testid={`subcategory-${c.slug}`}
+                className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${selectedSub === c.slug ? "bg-[#9C4221] text-white" : "border border-[#E8DFC8] bg-white text-[#635F59] hover:text-[#1F1D1A]"}`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E8DFC8] bg-white px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">

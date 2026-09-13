@@ -394,7 +394,8 @@ class BookCategory(BaseModel):
     name: str
     slug: str = ""
     description: str = ""
-    parent: str = ""  # slug bahasa -> subkategori; "" = kategori global
+    parent: str = ""  # slug bahasa (subkategori) atau slug kategori lain (sub dari kategori); "" = global
+    parent_type: str = ""  # "" | "language" | "category"
     active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -404,6 +405,7 @@ class BookCategoryInput(BaseModel):
     slug: str = ""
     description: str = ""
     parent: str = ""
+    parent_type: str = ""
     active: bool = True
 
 

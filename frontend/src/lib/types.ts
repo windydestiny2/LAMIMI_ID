@@ -47,7 +47,8 @@ export interface BookCategory {
   name: string;
   slug: string;
   description: string;
-  parent: string; // slug bahasa -> subkategori; "" = global
+  parent: string; // slug bahasa / slug kategori induk; "" = global
+  parent_type: string; // "" | "language" | "category"
   active: boolean;
   created_at: string;
 }

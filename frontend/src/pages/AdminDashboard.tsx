@@ -54,7 +54,7 @@ export default function AdminDashboard() {
   const [voucherEditingId, setVoucherEditingId] = useState<string | null>(null);
   const [languageForm, setLanguageForm] = useState({ name: "", description: "", label: "" });
   const [languageEditingId, setLanguageEditingId] = useState<string | null>(null);
-  const [categoryForm, setCategoryForm] = useState({ name: "", description: "", parent: "" });
+  const [categoryForm, setCategoryForm] = useState({ name: "", description: "", parentKey: "global" });
   const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null);
   const [adminBookPage, setAdminBookPage] = useState(1);
   const [adminBookCategory, setAdminBookCategory] = useState("semua");
@@ -198,11 +198,13 @@ export default function AdminDashboard() {
 
   const saveCategory = useMutation({
     mutationFn: () => {
+      const [pkType, pkSlug] = categoryForm.parentKey.includes(":") ? categoryForm.parentKey.split(":") : ["", ""];
       const payload = {
         name: categoryForm.name.trim(),
         slug: categoryForm.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
         description: categoryForm.description.trim(),
-        parent: categoryForm.parent,
+        parent: pkSlug,
+        parent_type: pkType === "lang" ? "language" : pkType === "cat" ? "category" : "",
         active: true,
       };
       return categoryEditingId ? aPut<BookCategory>(`/admin/categories/${categoryEditingId}`, payload) : aPost<BookCategory>("/admin/categories", payload);
@@ -210,7 +212,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       toast.success(categoryEditingId ? "Kategori diperbarui" : "Kategori ditambahkan");
       setCategoryEditingId(null);
-      setCategoryForm({ name: "", description: "", parent: "" });
+      setCategoryForm({ name: "", description: "", parentKey: "global" });
       refresh();
     },
     onError: (e) => toast.error(apiErrorMessage(e)),
@@ -767,14 +769,20 @@ export default function AdminDashboard() {
                   <Input value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} className="mt-1" data-testid="category-name-input" />
                 </div>
                 <div>
-                  <Label>Induk</Label>
-                  <Select value={categoryForm.parent || "global"} onValueChange={(v) => setCategoryForm({ ...categoryForm, parent: v === "global" ? "" : v })}>
+                  <Label>Induk (opsional)</Label>
+                  <Select value={categoryForm.parentKey} onValueChange={(v) => setCategoryForm({ ...categoryForm, parentKey: v })}>
                     <SelectTrigger className="mt-1 w-full" data-testid="category-parent-select">
-                      <SelectValue>{(v: string) => (v === "global" ? "Global (semua bahasa)" : (languages.data ?? []).find((l) => l.slug === v)?.label ?? v)}</SelectValue>
+                      <SelectValue>{(v: string) => {
+                        if (v === "global") return "Global (semua bahasa)";
+                        const [t, s] = v.split(":");
+                        if (t === "lang") return `Bahasa: ${(languages.data ?? []).find((l) => l.slug === s)?.label ?? s}`;
+                        return `Subkategori dari: ${(categories.data ?? []).find((c) => c.slug === s)?.name ?? s}`;
+                      }}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="global">Global (semua bahasa)</SelectItem>
-                      {(languages.data ?? []).map((l) => <SelectItem key={l.slug} value={l.slug}>{l.label || l.name}</SelectItem>)}
+                      {(languages.data ?? []).map((l) => <SelectItem key={l.slug} value={`lang:${l.slug}`}>Bahasa: {l.label || l.name}</SelectItem>)}
+                      {(categories.data ?? []).filter((c) => c.parent_type !== "category" && c.id !== categoryEditingId).map((c) => <SelectItem key={c.slug} value={`cat:${c.slug}`}>Subkategori dari: {c.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -794,12 +802,16 @@ export default function AdminDashboard() {
                     <div>
                       <p className="font-heading font-semibold">{c.name}</p>
                       <p className="text-xs text-[#635F59]">
-                        {c.parent ? `Subkategori dari ${(languages.data ?? []).find((l) => l.slug === c.parent)?.label ?? c.parent}` : "Global"}
+                        {c.parent_type === "category"
+                          ? `Subkategori dari kategori "${(categories.data ?? []).find((x) => x.slug === c.parent)?.name ?? c.parent}"`
+                          : c.parent
+                            ? `Subkategori dari ${(languages.data ?? []).find((l) => l.slug === c.parent)?.label ?? c.parent}`
+                            : "Global"}
                         {c.description ? ` · ${c.description}` : ""}
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => { setCategoryEditingId(c.id); setCategoryForm({ name: c.name, description: c.description, parent: c.parent ?? "" }); }} className="rounded-full border border-[#E8DFC8] p-2 text-[#635F59] hover:text-[#DD6B20]" data-testid={`category-edit-${c.slug}`}><Pencil className="size-3.5" /></button>
+                      <button onClick={() => { setCategoryEditingId(c.id); setCategoryForm({ name: c.name, description: c.description, parentKey: c.parent ? `${c.parent_type === "category" ? "cat" : "lang"}:${c.parent}` : "global" }); }} className="rounded-full border border-[#E8DFC8] p-2 text-[#635F59] hover:text-[#DD6B20]" data-testid={`category-edit-${c.slug}`}><Pencil className="size-3.5" /></button>
                       <button onClick={() => window.confirm(`Hapus kategori "${c.name}"?`) && deleteCategory.mutate(c.id)} className="rounded-full border border-[#E8DFC8] p-2 text-[#635F59] hover:text-red-600"><Trash2 className="size-3.5" /></button>
                     </div>
                   </div>
@@ -849,12 +861,12 @@ export default function AdminDashboard() {
             <div className="sm:col-span-2">
               <Label>Kategori Buku</Label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {(categories.data ?? []).map((c) => {
+                {[...(categories.data ?? [])].sort((a, b) => Number(a.parent_type === "category") - Number(b.parent_type === "category")).map((c) => {
                   const active = form.categories.includes(c.slug);
                   return (
                     <label key={c.id} className="flex items-center gap-2 rounded-full border border-[#E8DFC8] px-3 py-2 text-xs font-semibold text-[#635F59]">
                       <Checkbox checked={active} onCheckedChange={(checked) => setForm({ ...form, categories: checked === true ? [...form.categories, c.slug] : form.categories.filter((x) => x !== c.slug) })} />
-                      {c.name}
+                      {c.parent_type === "category" ? `└ ${c.name}` : c.name}
                     </label>
                   );
                 })}
