@@ -29,6 +29,18 @@ INDEXES: dict[str, list[IndexModel]] = {
     ],
     "users": [IndexModel([("email", ASCENDING)], name="email", unique=True)],
     "shipping_regions": [IndexModel([("id", ASCENDING)], name="id", unique=True)],
+    "language_entries": [
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+        IndexModel([("slug", ASCENDING)], name="slug", unique=True),
+    ],
+    "book_categories": [
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+        IndexModel([("slug", ASCENDING)], name="slug", unique=True),
+    ],
+    "vouchers": [
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+        IndexModel([("code", ASCENDING)], name="code", unique=True),
+    ],
     "login_attempts": [IndexModel([("identifier", ASCENDING)], name="identifier")],
 }
 

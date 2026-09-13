@@ -54,7 +54,7 @@ export default function AdminLogin() {
           <div className="mt-8 space-y-4">
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" data-testid="admin-email-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@lamimi.id" className="mt-1.5 h-11" required />
+              <Input id="email" type="email" data-testid="admin-email-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email admin" className="mt-1.5 h-11" required />
             </div>
             <div>
               <Label htmlFor="password">Kata sandi</Label>

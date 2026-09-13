@@ -10,6 +10,7 @@ const LINKS = [
   { to: "/etalase/digital", label: "Ebook Digital" },
   { to: "/etalase/fisik", label: "Buku Fisik" },
   { to: "/lacak", label: "Lacak Pesanan" },
+  { to: "/about-us", label: "About Us" },
 ];
 
 export function Navbar() {

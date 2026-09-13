@@ -25,9 +25,30 @@ export interface Book {
   shopee_url: string;
   tokopedia_url: string;
   tiktok_url: string;
+  categories: string[];
   variant_groups: VariantGroup[];
   variants: Variant[];
   stock: number; // -1 = unlimited (ebook default)
+  created_at: string;
+}
+
+export interface LanguageEntry {
+  id: string;
+  name: string;
+  slug: string;
+  label: string;
+  description: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface BookCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  parent: string; // slug bahasa -> subkategori; "" = global
+  active: boolean;
   created_at: string;
 }
 
@@ -56,10 +77,15 @@ export interface Order {
   notes: string;
   shipping_cost: number;
   subtotal: number;
+  discount_amount: number;
   total: number;
+  voucher_code: string;
   status: string;
   payment_method: string;
   payment_proof: string;
+  payment_received_amount: number;
+  payment_status: string;
+  payment_shortage: number;
   created_at: string;
 }
 
@@ -82,6 +108,18 @@ export interface PaymentMethod {
   account_number: string;
   qr_image: string;
   active: boolean;
+}
+
+export interface Voucher {
+  id: string;
+  code: string;
+  description: string;
+  discount_type: string;
+  discount_value: number;
+  active: boolean;
+  valid_from: string;
+  valid_until: string;
+  created_at: string;
 }
 
 export interface AdminUser {

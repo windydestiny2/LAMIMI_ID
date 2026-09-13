@@ -20,8 +20,8 @@ const HERO_LINES = ["Belajar bahasa dunia,", "mulai dari rak", "digital pertamam
 
 const CHAPTERS = [
   { num: "01", title: "Kurasi lintas bahasa", desc: "Mandarin, Korea, Jepang, dan Inggris — tiap ebook dipilih untuk pelajar Indonesia, dari nol sampai siap ujian." },
-  { num: "02", title: "Harga ramah pelajar", desc: "Ebook mulai dari Rp 45 ribu. Sekali bayar, file jadi milikmu selamanya, bisa dibaca di mana saja." },
-  { num: "03", title: "Terkirim instan & pasti", desc: "Ebook dikirim ke email/WhatsApp begitu pembayaran terkonfirmasi. Buku fisik meluncur via JNE." },
+  { num: "02", title: "Harga ramah pelajar", desc: "Ebook mulai dari Rp 5 ribu. Sekali bayar, file jadi milikmu selamanya, bisa dibaca di mana saja." },
+  { num: "03", title: "Terkirim instan & pasti", desc: "Ebook dikirim ke email/WhatsApp begitu pembayaran terkonfirmasi oleh Admin. Buku fisik meluncur via JNE." },
 ];
 
 export default function Home() {
@@ -48,7 +48,7 @@ export default function Home() {
               className="inline-flex items-center gap-2 rounded-full border border-[#FBD38D] bg-[#FEEBC8] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#9A3412]"
               data-testid="hero-overline"
             >
-              <Sparkles className="size-3.5" /> Toko Ebook Bahasa · LAMIMI_ID
+              <Sparkles className="size-3.5" /> Toko Ebook · LAMIMI_ID
             </motion.p>
             <h1 className="mt-6 font-heading text-4xl font-bold leading-[1.12] tracking-tight text-[#1F1D1A] sm:text-5xl lg:text-[56px]" data-testid="hero-heading">
               {HERO_LINES.map((line, i) => (
@@ -99,8 +99,8 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 1 }}
               className="mt-10 flex flex-wrap gap-x-8 gap-y-3 text-sm text-[#635F59]"
             >
-              <span className="flex items-center gap-2"><Languages className="size-4 text-[#DD6B20]" /> 4 Bahasa pilihan</span>
-              <span className="flex items-center gap-2"><Zap className="size-4 text-[#DD6B20]" /> Ebook terkirim instan</span>
+              <span className="flex items-center gap-2"><Languages className="size-4 text-[#DD6B20]" />Buku Bahasa Terlengkap</span>
+              <span className="flex items-center gap-2"><Zap className="size-4 text-[#DD6B20]" /> Ebook Instant</span>
               <span className="flex items-center gap-2"><Truck className="size-4 text-[#DD6B20]" /> Ongkir JNE seluruh Indonesia</span>
             </motion.div>
           </div>
@@ -230,7 +230,7 @@ export default function Home() {
             <Reveal>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#DD6B20]">Manifesto Kami</p>
               <h2 className="mt-3 font-heading text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
-                Bahasa adalah jembatan, bukan penghalang.
+                "When There is a Will, There is a Way".
               </h2>
               <div className="mt-8 overflow-hidden rounded-[2rem] border border-[#E8DFC8]">
                 <img src={MANIFESTO_IMG} alt="Rak buku di sudut perpustakaan yang hangat" className="aspect-[4/3] w-full object-cover" />

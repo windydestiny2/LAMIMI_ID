@@ -2,34 +2,149 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { BookOpen, Truck } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Search, Truck } from "lucide-react";
 import { SiShopee, SiTiktok } from "@icons-pack/react-simple-icons";
 import { apiGet } from "@/lib/api";
-import type { Book } from "@/lib/types";
-import { LANGUAGE_META, SHOPEE_URL, WA_NUMBER } from "@/lib/types";
+import type { Book, BookCategory, LanguageEntry } from "@/lib/types";
+import { SHOPEE_URL, WA_NUMBER } from "@/lib/types";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { BookCard } from "@/components/BookCard";
 import { Reveal } from "@/components/Reveal";
 import { Store } from "lucide-react";
 
-const FILTERS = ["semua", "mandarin", "korea", "jepang", "inggris"];
+const DIGITAL_PAGE_SIZE = 25;
+const SORT_OPTIONS = [
+  { key: "newest", label: "Newest" },
+  { key: "oldest", label: "Oldest" },
+  { key: "highest", label: "Highest Price" },
+  { key: "lowest", label: "Lowest Price" },
+];
 
 export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
-  const [params] = useSearchParams();
-  const initial = params.get("bahasa") ?? "semua";
-  const [filter, setFilter] = useState(FILTERS.includes(initial) ? initial : "semua");
-  const { data: books, isLoading } = useQuery({
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedLanguage = searchParams.get("bahasa") ?? "semua";
+  const selectedCategory = searchParams.get("kategori") ?? "semua";
+  const selectedSort = searchParams.get("sort") ?? "newest";
+  const searchTitle = (searchParams.get("q") ?? "").trim().toLowerCase();
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+
+  const isDigital = kind === "digital";
+
+  const { data: books, isLoading: loadingBooks } = useQuery({
     queryKey: ["books", kind],
     queryFn: () => apiGet<Book[]>(`/books?type=${kind}`),
   });
 
-  const filtered = useMemo(
-    () => (books ?? []).filter((b) => filter === "semua" || b.language === filter),
-    [books, filter],
+  const { data: languages = [] } = useQuery({
+    queryKey: ["languages"],
+    queryFn: () => apiGet<LanguageEntry[]>("/languages"),
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => apiGet<BookCategory[]>("/categories"),
+  });
+
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => !c.parent || selectedLanguage === "semua" || c.parent === selectedLanguage),
+    [categories, selectedLanguage],
   );
 
-  const isDigital = kind === "digital";
+  const filtered = useMemo(() => {
+    const rows = (books ?? []).filter((b) => {
+      const languageMatch = selectedLanguage === "semua" || b.language === selectedLanguage;
+      const categoryMatch = selectedCategory === "semua" || (b.categories ?? []).includes(selectedCategory);
+      const titleMatch = !searchTitle || b.title.toLowerCase().includes(searchTitle);
+      return languageMatch && categoryMatch && titleMatch;
+    });
+
+    const sorted = [...rows];
+    switch (selectedSort) {
+      case "oldest":
+        sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        break;
+      case "highest":
+        sorted.sort((a, b) => b.price - a.price);
+        break;
+      case "lowest":
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case "newest":
+      default:
+        sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+    }
+
+    return sorted;
+  }, [books, selectedCategory, selectedLanguage, selectedSort, searchTitle]);
+
+  const pageSize = isDigital ? DIGITAL_PAGE_SIZE : filtered.length || 1;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const requestPage = Number(searchParams.get("page") ?? "1");
+  const currentPage = Math.min(Math.max(requestPage, 1), pageCount);
+
+  const pageBooks = useMemo(() => {
+    if (!isDigital) return filtered;
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [currentPage, filtered, isDigital, pageSize]);
+
+  const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1);
+
+  const handleLanguageChange = (language: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (language === "semua") {
+      next.delete("bahasa");
+    } else {
+      next.set("bahasa", language);
+    }
+    next.delete("kategori");
+    next.set("page", "1");
+    setSearchParams(next);
+    setLanguageMenuOpen(false);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (category === "semua") {
+      next.delete("kategori");
+    } else {
+      next.set("kategori", category);
+      const parent = categories.find((c) => c.slug === category)?.parent;
+      if (parent) next.set("bahasa", parent);
+    }
+    next.set("page", "1");
+    setSearchParams(next);
+  };
+
+  const handleSortChange = (sortKey: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (sortKey === "newest") {
+      next.delete("sort");
+    } else {
+      next.set("sort", sortKey);
+    }
+    next.set("page", "1");
+    setSearchParams(next);
+  };
+
+  const handleTitleSearch = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value.trim()) {
+      next.delete("q");
+    } else {
+      next.set("q", value);
+    }
+    next.set("page", "1");
+    setSearchParams(next);
+  };
+
+  const goToPage = (page: number) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("page", String(Math.min(Math.max(page, 1), pageCount)));
+    setSearchParams(next);
+  };
 
   return (
     <div className="min-h-screen bg-[#FAF7F2]">
@@ -66,24 +181,97 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
           </Reveal>
         )}
 
-        <div className="mt-10 flex flex-wrap gap-2" data-testid="language-filters">
-          {FILTERS.map((f) => (
+        <div className="mt-10 flex flex-wrap items-center gap-2" data-testid="language-filters">
+          <button
+            onClick={() => {
+              setLanguageMenuOpen(false);
+              handleLanguageChange("semua");
+              handleCategoryChange("semua");
+            }}
+            className={`relative rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              selectedLanguage === "semua" && selectedCategory === "semua" ? "text-white" : "border border-[#E8DFC8] bg-white text-[#635F59] hover:text-[#1F1D1A]"
+            }`}
+          >
+            {selectedLanguage === "semua" && selectedCategory === "semua" && <motion.span layoutId={`filter-pill-${kind}`} className="absolute inset-0 rounded-full bg-[#1F1D1A]" transition={{ duration: 0.3 }} />}
+            <span className="relative">Semua</span>
+          </button>
+
+          <div className="relative">
             <button
-              key={f}
-              onClick={() => setFilter(f)}
-              data-testid={`filter-${f}`}
+              onClick={() => setLanguageMenuOpen((v) => !v)}
               className={`relative rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                filter === f ? "text-white" : "border border-[#E8DFC8] bg-white text-[#635F59] hover:text-[#1F1D1A]"
+                selectedLanguage !== "semua" ? "bg-[#1F1D1A] text-white" : "border border-[#E8DFC8] bg-white text-[#635F59] hover:text-[#1F1D1A]"
               }`}
             >
-              {filter === f && <motion.span layoutId={`filter-pill-${kind}`} className="absolute inset-0 rounded-full bg-[#1F1D1A]" transition={{ duration: 0.3 }} />}
-              <span className="relative">{f === "semua" ? "Semua" : LANGUAGE_META[f]?.label}</span>
+              Bahasa{selectedLanguage !== "semua" ? `: ${languages.find((l) => l.slug === selectedLanguage)?.label ?? selectedLanguage}` : ""}
+            </button>
+            {languageMenuOpen && (
+              <div className="absolute left-0 top-full z-30 mt-2 min-w-52 rounded-2xl border border-[#E8DFC8] bg-white p-2 shadow-xl">
+                <button
+                  onClick={() => handleLanguageChange("semua")}
+                  className="block w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-[#F5EDE0]"
+                >
+                  Semua Bahasa
+                </button>
+                {languages.map((l) => (
+                  <button
+                    key={l.slug}
+                    onClick={() => handleLanguageChange(l.slug)}
+                    className="block w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-[#F5EDE0]"
+                  >
+                    {l.label || l.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {visibleCategories.map((c) => (
+            <button
+              key={c.slug}
+              onClick={() => handleCategoryChange(c.slug)}
+              className={`relative rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                selectedCategory === c.slug ? "text-white" : "border border-[#E8DFC8] bg-white text-[#635F59] hover:text-[#1F1D1A]"
+              }`}
+            >
+              {selectedCategory === c.slug && <motion.span layoutId={`filter-pill-${kind}`} className="absolute inset-0 rounded-full bg-[#1F1D1A]" transition={{ duration: 0.3 }} />}
+              <span className="relative">{c.name}</span>
             </button>
           ))}
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E8DFC8] bg-white px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#635F59]" />
+              <input
+                value={searchParams.get("q") ?? ""}
+                onChange={(e) => handleTitleSearch(e.target.value)}
+                placeholder="Cari judul buku"
+                className="w-80 rounded-full border border-[#E8DFC8] bg-[#FAF7F2] px-10 py-2 text-sm outline-none transition focus:border-[#DD6B20]"
+                data-testid="catalog-title-search"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {SORT_OPTIONS.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => handleSortChange(s.key)}
+                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  selectedSort === s.key
+                    ? "bg-[#1F1D1A] text-white"
+                    : "border border-[#E8DFC8] bg-white text-[#635F59] hover:text-[#C05621]"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4" data-testid="catalog-grid">
-          {isLoading &&
+          {loadingBooks &&
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="animate-pulse rounded-2xl border border-[#E8DFC8] bg-white p-3">
                 <div className="aspect-[3/4] rounded-xl bg-[#F5EDE0]" />
@@ -91,13 +279,51 @@ export default function Catalog({ kind }: { kind: "digital" | "fisik" }) {
                 <div className="mt-2 h-4 w-1/3 rounded bg-[#F5EDE0]" />
               </div>
             ))}
-          {!isLoading && filtered.map((b) => <BookCard key={b.id} book={b} />)}
-          {!isLoading && filtered.length === 0 && (
+          {!loadingBooks && pageBooks.map((b) => <BookCard key={b.id} book={b} />)}
+          {!loadingBooks && filtered.length === 0 && (
             <div className="col-span-full flex flex-col items-start gap-3 rounded-2xl border border-dashed border-[#E8DFC8] bg-white p-10">
               <BookOpen className="size-8 text-[#DD6B20]" />
               <p className="text-sm text-[#635F59]">Belum ada buku di kategori ini. Coba filter lain atau hubungi admin.</p>
             </div>
           )}
+        </div>
+
+        {isDigital && !loadingBooks && pageCount > 1 && (
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-2 border-t border-[#E8DFC8] pt-8">
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="inline-flex items-center gap-1 rounded-full border border-[#E8DFC8] bg-white px-4 py-2 text-sm font-semibold text-[#1F1D1A] transition hover:border-[#DD6B20] hover:text-[#C05621] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ChevronLeft className="size-4" /> Prev
+            </button>
+            {pageNumbers.map((n) => (
+              <button
+                key={n}
+                onClick={() => goToPage(n)}
+                className={`min-w-10 rounded-full px-3 py-2 text-sm font-semibold transition ${
+                  n === currentPage
+                    ? "bg-[#1F1D1A] text-white"
+                    : "border border-[#E8DFC8] bg-white text-[#635F59] hover:border-[#DD6B20] hover:text-[#C05621]"
+                }`}
+              >
+                Page {n}
+              </button>
+            ))}
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === pageCount}
+              className="inline-flex items-center gap-1 rounded-full border border-[#E8DFC8] bg-white px-4 py-2 text-sm font-semibold text-[#1F1D1A] transition hover:border-[#DD6B20] hover:text-[#C05621] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next <ChevronRight className="size-4" />
+            </button>
+          </div>
+        )}
+
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-2 rounded-[2rem] border border-[#E8DFC8] bg-[#F5EDE0]/70 px-6 py-7 text-center">
+          <p className="font-heading text-lg font-semibold italic leading-relaxed text-[#1F1D1A]">
+            Butuh buku lain yang tidak ada di etalase? <a className="font-semibold text-[#C05621] underline underline-offset-4 hover:text-[#9C4221]" href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Halo! Saya ingin request buku ... bentuk digital / fisik (pilih satu), apakah ada?")}`} target="_blank" rel="noreferrer">request ke WhatsApp</a>
+          </p>
         </div>
       </section>
       <Footer />

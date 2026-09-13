@@ -18,6 +18,12 @@ export function marketplaceLinks(book: Book) {
 }
 
 export function handleAddToCart(book: Book, variant?: Variant) {
+  const requestedStock = variant ? variant.stock : book.stock;
+  if (requestedStock === 0) {
+    toast.error("Stok variasi ini sedang habis.");
+    return;
+  }
+
   const r = addToCart({
     key: `${book.id}:${variant?.id ?? ""}`,
     id: book.id,
@@ -27,6 +33,8 @@ export function handleAddToCart(book: Book, variant?: Variant) {
     title: book.title,
     price: variant?.price ?? book.price,
     cover_url: book.cover_url,
+    qty: 1,
+    stock: variant?.stock ?? book.stock,
   });
   if (r.ok) toast.success(`"${book.title}${variant ? ` — ${variant.label}` : ""}" masuk keranjang`);
   else if (r.reason === "dupe") toast.error("Item ini sudah ada di keranjang.");
@@ -37,13 +45,16 @@ export function BookCard({ book }: { book: Book }) {
   const meta = LANGUAGE_META[book.language];
   const isDigital = book.type === "digital";
   const hasVariants = book.variants.length > 0;
+  const isOutOfStock = !hasVariants && book.stock === 0;
+  const allVariantsOutOfStock = hasVariants && book.variants.length > 0 && book.variants.every((v) => v.stock === 0);
+  const cardOutOfStock = !hasVariants ? isOutOfStock : allVariantsOutOfStock;
   const minPrice = hasVariants ? Math.min(...book.variants.map((v) => v.price)) : book.price;
   const buyTo = hasVariants ? `/buku/${book.id}` : `/checkout/${book.id}`;
   return (
     <motion.article
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2 }}
-      className="group relative flex flex-col rounded-2xl border border-[#E8DFC8] bg-white p-3 shadow-sm transition-shadow hover:shadow-lg hover:shadow-[#DD6B20]/5"
+      className={`group relative flex flex-col rounded-2xl border border-[#E8DFC8] bg-white p-3 shadow-sm transition-shadow hover:shadow-lg hover:shadow-[#DD6B20]/5 ${cardOutOfStock ? "border-[#9CA3AF] bg-[#E5E7EB] opacity-70" : ""}`}
       data-testid={`book-card-${book.id}`}
     >
       <Link to={`/buku/${book.id}`} className="relative block overflow-hidden rounded-xl" data-testid={`book-cover-link-${book.id}`}>
@@ -64,10 +75,11 @@ export function BookCard({ book }: { book: Book }) {
       </Link>
       {!hasVariants && (
         <button
-          onClick={() => handleAddToCart(book)}
+          onClick={() => (isOutOfStock ? toast.error("Stok buku ini sedang habis.") : handleAddToCart(book))}
+          disabled={isOutOfStock}
           data-testid={`add-cart-${book.id}`}
           aria-label="Tambah ke keranjang"
-          className="absolute right-5 top-5 flex size-8 items-center justify-center rounded-full bg-white/90 text-[#1F1D1A] shadow backdrop-blur transition-colors hover:bg-[#DD6B20] hover:text-white"
+          className={`absolute right-5 top-5 flex size-8 items-center justify-center rounded-full shadow backdrop-blur transition-colors ${isOutOfStock ? "cursor-not-allowed bg-[#E5E7EB] text-[#6B7280] opacity-60" : "bg-white/90 text-[#1F1D1A] hover:bg-[#DD6B20] hover:text-white"}`}
         >
           <ShoppingCart className="size-4" />
         </button>

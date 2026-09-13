@@ -31,7 +31,38 @@ export default function BookDetail() {
   const groups = book?.variant_groups ?? [];
   const hasVariants = groups.length > 0;
   const allSelected = groups.every((g) => sel[g.name]);
-  const activeVariant = book?.variants.find((v) => groups.every((g) => v.selections[g.name] === sel[g.name]));
+  const activeVariant = book?.variants.find((v) => {
+    const selections = v.selections ?? {};
+    return groups.every((g) => {
+      if (!Object.prototype.hasOwnProperty.call(selections, g.name)) return true;
+      return selections[g.name] === sel[g.name];
+    });
+  });
+  const isOptionOutOfStock = (groupName: string, option: string) => {
+    if (!book?.variants?.length) return false;
+    const matching = book.variants.filter((v) => v.selections?.[groupName] === option);
+    if (matching.length === 0) return false;
+    const relevant = matching.filter((v) => {
+      return groups.every((g) => g.name === groupName || !sel[g.name] || (v.selections ?? {})[g.name] === sel[g.name]);
+    });
+    if (relevant.length === 0) return true;
+    return relevant.every((v) => v.stock === 0);
+  };
+  const getOptionStockText = (groupName: string, option: string) => {
+    if (!book?.variants?.length) return "";
+    const matching = book.variants.filter((v) => (v.selections ?? {})[groupName] === option);
+    const relevant = matching.filter((v) => {
+      return groups.every((g) => g.name === groupName || !sel[g.name] || (v.selections ?? {})[g.name] === sel[g.name]);
+    });
+    if (relevant.length === 0) return "";
+
+    const stocks = relevant.map((v) => v.stock);
+    if (stocks.some((s) => s < 0)) return "tersedia";
+
+    const positive = stocks.filter((s) => s > 0);
+    if (positive.length === 0) return "habis";
+    return `sisa ${Math.min(...positive)}`;
+  };
   const outOfStock = !!book && !isDigital && (hasVariants ? !!activeVariant && activeVariant.stock === 0 : book.stock === 0);
 
   const buy = (e?: React.MouseEvent) => {
@@ -91,20 +122,45 @@ export default function BookDetail() {
                       <div key={g.name}>
                         <p className="text-sm font-semibold">{g.name}{sel[g.name] ? `: ${sel[g.name]}` : ""}</p>
                         <div className="mt-2 flex flex-wrap gap-2" data-testid={`variant-group-${g.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
-                          {g.options.map((o) => (
-                            <button
-                              key={o}
-                              onClick={() => setSel((s) => ({ ...s, [g.name]: o }))}
-                              data-testid={`variant-option-${g.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-                                sel[g.name] === o
-                                  ? "border-[#DD6B20] bg-[#FEEBC8] text-[#9A3412] ring-1 ring-[#DD6B20]"
-                                  : "border-[#E8DFC8] bg-white text-[#635F59] hover:border-[#DD6B20]/60"
-                              }`}
-                            >
-                              {o}
-                            </button>
-                          ))}
+                          {g.options.map((o) => {
+                            const selected = sel[g.name] === o;
+                            const optionOut = isOptionOutOfStock(g.name, o);
+                            const stockText = selected ? getOptionStockText(g.name, o) : "";
+                            return (
+                              <button
+                                key={o}
+                                onClick={() => {
+                                  if (optionOut) return;
+                                  if (selected) {
+                                    setSel((s) => {
+                                      const next = { ...s };
+                                      delete next[g.name];
+                                      return next;
+                                    });
+                                    return;
+                                  }
+                                  setSel((s) => ({ ...s, [g.name]: o }));
+                                }}
+                                disabled={false}
+                                aria-disabled={optionOut}
+                                data-testid={`variant-option-${g.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                                className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                                  optionOut
+                                    ? "cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280] opacity-70"
+                                    : selected
+                                      ? "border-[#DD6B20] bg-[#FEEBC8] text-[#9A3412] ring-1 ring-[#DD6B20]"
+                                      : "border-[#E8DFC8] bg-white text-[#635F59] hover:border-[#DD6B20]/60"
+                                }`}
+                              >
+                                <span>{o}</span>
+                                {selected && stockText && (
+                                  <span className="mt-1 block text-[11px] font-semibold text-[#635F59]">
+                                    {stockText === "tersedia" ? "Tersedia" : stockText === "habis" ? "Habis" : stockText}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}

@@ -44,3 +44,9 @@ Website toko live gratis bernama LAMIMI_ID: (1) toko ebook digital Mandarin/Kore
 - Variasi produk ala Shopee: variant_groups (nama bebas: Level/Ukuran/Jenis) + variants (kombinasi dengan harga masing-masing); editor di dialog buku admin ("Buat/Perbarui Kombinasi Harga"); detail page dengan pill selector; cart/checkout membawa variant_id; OrderItem menyimpan variant_label; contoh terpasang di "HSK 3.0 Mock Test" (Level 1-4 @ Rp30.000).
 - Stok per variasi & per buku fisik (stock: -1 = unlimited): tampil di detail page, stok berkurang saat order dibuat, order ditolak jika habis, stok kembali saat pesanan dibatalkan admin; input stok di editor variasi admin.
 - Export data live ke backend/seed_data.json (export_data.py) — startup auto-seed dari file ini jika koleksi kosong, sehingga project jalan lokal dengan data penuh. PANDUAN_LOKAL.md berisi langkah run di Mac (brew, mongodb-community, venv, yarn).
+
+## Update (13 Sep 2026, sesi 4 — sync dari GitHub windydestiny2/LAMIMI_ID)
+- Kode user (voucher/promo, OCR bukti bayar via pytesseract, upload cover, About Us, filter admin) disinkronkan dari repo GitHub ke live env; pytesseract + tesseract-ocr diinstal.
+- Kategori & subkategori diperbaiki: BookCategory punya field `parent` (slug bahasa; "" = global). 12 kategori dibuat (Best Seller, Serba 5rb, Mandarin Bisnis/Taiwan/Kids/PPT Lama/Lainnya, Korean Corner/Business, Japan Corner, English Corner/Business) dan 124 buku digital ter-assign otomatis via migrate_categories.py (mapping badge+bahasa).
+- Katalog: pill subkategori terfilter per bahasa; memilih subkategori otomatis mengaktifkan bahasa induknya; fix pill "Bahasa" yang tak terbaca.
+- Alur pembelian diverifikasi utuh (order → confirm-payment → menunggu_verifikasi + OCR payment_status).

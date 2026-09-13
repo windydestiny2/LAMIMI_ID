@@ -7,6 +7,7 @@ import Catalog from "@/pages/Catalog";
 import BookDetail from "@/pages/BookDetail";
 import Checkout from "@/pages/Checkout";
 import TrackOrder from "@/pages/TrackOrder";
+import AboutUs from "@/pages/AboutUs";
 import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
 
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/buku/:id" element={<BookDetail />} />
         <Route path="/checkout/:id" element={<Checkout />} />
         <Route path="/lacak" element={<TrackOrder />} />
+        <Route path="/about-us" element={<AboutUs />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -101,8 +101,15 @@ export default defineConfig(async () => {
       watch: hotReloadDisabled ? null : { usePolling: true, interval: 300 },
       // The /api proxy convention: frontend code calls relative /api/*, never an
       // absolute backend URL. Target is the FastAPI dev server (supervisor: backend).
+      // Uploaded cover files are exposed by FastAPI through /uploads/* and must be
+      // proxied the same way, otherwise Vite on localhost:3000 tries to serve a
+      // non-existent static file from the frontend dev origin and shows the broken-image icon.
       proxy: {
         "/api": {
+          target: "http://localhost:8001",
+          changeOrigin: true,
+        },
+        "/uploads": {
           target: "http://localhost:8001",
           changeOrigin: true,
         },

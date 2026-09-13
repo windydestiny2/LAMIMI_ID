@@ -21,6 +21,21 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (await res.json()) as T;
 }
 
+export async function uploadCover(file: File): Promise<{cover_url: string}> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/admin/upload-cover`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getAdminToken()}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => null);
+    throw new ApiError(res.status, errBody);
+  }
+  return (await res.json()) as { cover_url: string };
+}
+
 export const aGet = <T>(path: string) => request<T>("GET", path);
 export const aPost = <T>(path: string, body?: unknown) => request<T>("POST", path, body);
 export const aPut = <T>(path: string, body?: unknown) => request<T>("PUT", path, body);

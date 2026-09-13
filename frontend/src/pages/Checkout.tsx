@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { validateCheckoutContact } from "@/lib/checkoutValidation";
 
 export default function Checkout() {
   const { id } = useParams();
@@ -38,6 +39,7 @@ export default function Checkout() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [form, setForm] = useState({ name: "", phone: "", email: "", address: "", city: "", province: "", postal: "", region: "", notes: "" });
+  const [voucherCode, setVoucherCode] = useState("");
   const [method, setMethod] = useState("");
   const [proof, setProof] = useState("");
   const [result, setResult] = useState<OrderResponse | null>(null);
@@ -55,14 +57,20 @@ export default function Checkout() {
       title: book.title,
       price: variant?.price ?? book.price,
       cover_url: book.cover_url,
+      qty: 1,
+      stock: variant?.stock ?? book.stock,
     }];
   }, [isCart, cartItems, book, variantId]);
 
   const orderType = items[0]?.type ?? "digital";
   const isPhysical = orderType === "fisik";
-  const subtotal = items.reduce((s, i) => s + i.price, 0);
+  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
   const selectedRegion = regions?.find((r) => r.name === form.region);
-  const total = subtotal + (isPhysical ? selectedRegion?.cost ?? 0 : 0);
+  const quantityTotal = items.reduce((s, i) => s + i.qty, 0);
+  const physicalUnits = items.filter((i) => i.type === "fisik").reduce((s, i) => s + i.qty, 0);
+  const shippingMultiplier = isPhysical ? Math.max(1, Math.ceil(physicalUnits / 5)) : 1;
+  const shippingCost = isPhysical ? (selectedRegion?.cost ?? 0) * shippingMultiplier : 0;
+  const total = subtotal + shippingCost;
   const selectedMethod = methods?.find((m) => m.name === method);
 
   const createOrder = useMutation({
@@ -71,7 +79,7 @@ export default function Checkout() {
         customer_name: form.name,
         customer_email: form.email,
         customer_phone: form.phone,
-        items: items.map((i) => ({ book_id: i.id, variant_id: i.variant_id })),
+        items: items.map((i) => ({ book_id: i.id, variant_id: i.variant_id, qty: i.qty })),
         order_type: orderType,
         address: form.address,
         city: form.city,
@@ -79,6 +87,7 @@ export default function Checkout() {
         postal_code: form.postal,
         region: form.region,
         notes: form.notes,
+        voucher_code: voucherCode.trim().toUpperCase(),
       }),
     onSuccess: (data) => {
       setResult(data);
@@ -102,8 +111,15 @@ export default function Checkout() {
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const submitForm = () => {
-    if (!form.name.trim() || !form.phone.trim()) return toast.error("Isi nama dan nomor WhatsApp dulu ya.");
-    if (!isPhysical && !form.email.trim()) return toast.error("Isi email untuk pengiriman ebook ya.");
+    if (!form.name.trim()) return toast.error("Isi nama lengkap dulu ya.");
+
+    const contactError = validateCheckoutContact({
+      email: form.email,
+      phone: form.phone,
+      isPhysical,
+    });
+    if (contactError) return toast.error(contactError);
+
     if (isPhysical && (!form.address.trim() || !form.city.trim() || !form.province.trim() || !form.region))
       return toast.error("Lengkapi alamat dan wilayah pengiriman dulu ya.");
     createOrder.mutate();
@@ -160,23 +176,26 @@ export default function Checkout() {
                 <div className="rounded-3xl border border-[#E8DFC8] bg-white p-5" data-testid="checkout-summary">
                   <div className="space-y-3">
                     {items.map((i) => (
-                      <div key={i.key} className="flex gap-3">
+                      <div key={i.key} className={`flex gap-3 ${i.stock === 0 ? "rounded-2xl border border-[#9CA3AF] bg-[#E5E7EB] p-2 opacity-70" : ""}`}>
                         <img src={i.cover_url} alt={i.title} className="h-20 w-14 rounded-lg border border-[#E8DFC8] object-cover" />
                         <div>
                           <p className="text-sm font-semibold leading-snug">{i.title}</p>
                           {i.variant_label && <p className="mt-0.5 text-[11px] font-medium text-[#C05621]">{i.variant_label}</p>}
                           <p className="mt-0.5 text-xs text-[#635F59]">{i.type === "fisik" ? "Buku Fisik · JNE" : "Ebook Digital"}</p>
-                          <p className="mt-1 font-mono text-sm font-bold text-[#9C4221]">{rupiah(i.price)}</p>
+                          <p className="mt-1 font-mono text-sm font-bold text-[#9C4221]">{rupiah(i.price)} <span className="text-[#635F59] font-sans text-[11px]">x{i.qty}</span></p>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="mt-5 space-y-2 border-t border-[#E8DFC8] pt-4 text-sm">
-                    <div className="flex justify-between text-[#635F59]"><span>Subtotal ({items.length} item)</span><span>{rupiah(subtotal)}</span></div>
+                    <div className="flex justify-between text-[#635F59]"><span>Subtotal ({quantityTotal} item)</span><span>{rupiah(subtotal)}</span></div>
                     {isPhysical && (
                       <div className="flex justify-between text-[#635F59]">
-                        <span>Ongkir JNE {selectedRegion ? `(${selectedRegion.name})` : ""}</span>
-                        <span>{selectedRegion ? rupiah(selectedRegion.cost) : "—"}</span>
+                        <span>
+                          Ongkir JNE {selectedRegion ? `(${selectedRegion.name})` : ""}
+                          {shippingMultiplier > 1 && <span className="ml-1 font-semibold text-[#9C4221]">x{shippingMultiplier}</span>}
+                        </span>
+                        <span>{selectedRegion ? rupiah(shippingCost) : "—"}</span>
                       </div>
                     )}
                     <div className="flex justify-between border-t border-[#E8DFC8] pt-2 font-mono text-base font-bold text-[#9C4221]">
@@ -212,7 +231,7 @@ export default function Checkout() {
                           </div>
                           <div>
                             <Label htmlFor="city">Kota / Kabupaten *</Label>
-                            <Input id="city" data-testid="checkout-city-input" value={form.city} onChange={set("city")} placeholder="Contoh: Bandung" className="mt-1.5" />
+                            <Input id="city" data-testid="checkout-city-input" value={form.city} onChange={set("city")} placeholder="Cth: Kab. Bogor / Kota Bogor" className="mt-1.5" />
                           </div>
                           <div>
                             <Label htmlFor="province">Provinsi *</Label>
@@ -220,7 +239,7 @@ export default function Checkout() {
                           </div>
                           <div>
                             <Label htmlFor="postal">Kode pos</Label>
-                            <Input id="postal" data-testid="checkout-postal-input" value={form.postal} onChange={set("postal")} placeholder="40xxx" className="mt-1.5" />
+                            <Input id="postal" data-testid="checkout-postal-input" value={form.postal} onChange={set("postal")} placeholder="16xxx" className="mt-1.5" />
                           </div>
                           <div>
                             <Label>Wilayah pengiriman (ongkir JNE) *</Label>
@@ -243,6 +262,10 @@ export default function Checkout() {
                         <Label htmlFor="notes">Catatan (opsional)</Label>
                         <Input id="notes" data-testid="checkout-notes-input" value={form.notes} onChange={set("notes")} placeholder="Contoh: kirim secepatnya ya" className="mt-1.5" />
                       </div>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="voucherCode">Kode Promo / Voucher (opsional)</Label>
+                        <Input id="voucherCode" data-testid="checkout-voucher-input" value={voucherCode} onChange={(e) => setVoucherCode(e.target.value.toUpperCase())} placeholder="MASUKKAN KODE PROMO" className="mt-1.5 uppercase" />
+                      </div>
                     </div>
                     <button
                       onClick={submitForm}
@@ -253,6 +276,37 @@ export default function Checkout() {
                       {createOrder.isPending ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
                       Lanjut ke Pembayaran
                     </button>
+
+                    {isPhysical && (
+                      <div className="mt-4 rounded-2xl border border-[#E8DFC8] bg-[#FDF8EE] p-4">
+                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-[#9C4221]">
+                          <ShieldCheck className="size-4" />
+                          Syarat &amp; Ketentuan
+                        </div>
+                        <ul className="mt-3 space-y-2 text-sm leading-relaxed text-[#635F59]">
+                          <li className="flex items-start gap-2">
+                            <span className="mt-2 size-1.5 rounded-full bg-[#DD6B20]" />
+                            <span>Buku fisik diproses PO selama 3–4 hari dan akan dikirim secepatnya.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="mt-2 size-1.5 rounded-full bg-[#DD6B20]" />
+                            <span>Jika alamat pengiriman tidak sesuai, segera konfirmasi Admin.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="mt-2 size-1.5 rounded-full bg-[#DD6B20]" />
+                            <span>Pastikan No. Whatsapp Aktif agar bisa kami hubungi.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="mt-2 size-1.5 rounded-full bg-[#DD6B20]" />
+                            <span>Ongkir berkelipatan setiap pembelian 5 pcs buku.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="mt-2 size-1.5 rounded-full bg-[#DD6B20]" />
+                            <span>Mohon isi ongkir sesuai alamat, jika tidak sesuai maka pengiriman tidak akan diproses.</span>
+                          </li>
+                        </ul>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -345,13 +399,24 @@ export default function Checkout() {
                     <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.15 }}>
                       <CheckCircle2 className="size-14 text-green-600" />
                     </motion.div>
-                    <h2 className="mt-4 font-heading text-2xl font-semibold text-green-900">Bukti pembayaran diterima!</h2>
-                    <p className="mt-2 text-sm leading-relaxed text-green-800">
-                      Pesanan <span className="font-mono font-bold">{result.order.order_number}</span> sedang diverifikasi admin ({result.order.payment_method}).
-                      {isPhysical
-                        ? " Langkah terakhir: kirim detail pesanan ke admin lewat WhatsApp agar bukumu segera dipacking."
-                        : " Langkah terakhir: kirim detail pesanan ke admin lewat WhatsApp — ebook langsung dikirim ke email kamu setelah pembayaran terverifikasi."}
-                    </p>
+                    {result.order.payment_status === "Pembayaran Diterima" ? (
+                      <>
+                        <h2 className="mt-4 font-heading text-2xl font-semibold text-green-900">Bukti pembayaran diterima!</h2>
+                        <p className="mt-2 text-sm leading-relaxed text-green-800">
+                          Pesanan <span className="font-mono font-bold">{result.order.order_number}</span> sedang diverifikasi admin ({result.order.payment_method}).
+                          {isPhysical
+                            ? " Langkah terakhir: kirim detail pesanan ke admin lewat WhatsApp agar bukumu segera dipacking."
+                            : " Langkah terakhir: kirim detail pesanan ke admin lewat WhatsApp — ebook langsung dikirim ke email kamu setelah pembayaran terverifikasi."}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <h2 className="mt-4 font-heading text-2xl font-semibold text-[#9C4221]">Pembayaran Kurang</h2>
+                        <p className="mt-2 text-sm leading-relaxed text-[#9C4221]">
+                          Pesanan <span className="font-mono font-bold">{result.order.order_number}</span> membutuhkan kekurangan sebesar <span className="font-mono font-bold">{rupiah(result.order.payment_shortage)}</span> untuk bisa diterima admin. Silakan kirim kembali bukti payment yang sesuai.
+                        </p>
+                      </>
+                    )}
                     <a
                       href={result.whatsapp_url}
                       target="_blank"
